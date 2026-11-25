@@ -315,6 +315,61 @@ def news():
     return render_template("news.html", items=items, cats=NEWS_CATS, cat=cat, kind=kind, counts=counts)
 
 
+def youtube_id(url):
+    m = re.search(r"(?:v=|youtu\.be/|/embed/)([\w-]{11})", url or "")
+    return m.group(1) if m else None
+
+
+def _words_in(name, text):
+    return any(len(w) >= 2 and w in (text or "") for w in (name or "").split(" "))
+
+
+@app.route("/fight/<int:n>/<path:eid>")
+def fight(n, eid):
+    """경기 상세: 결과·채점·공식 영상 + 경기 이야기 + 두 선수의 서사와 최근 전적"""
+    with dbm.get_db() as db:
+        evs = {e["id"]: e for e in events_all(db)}
+        e = evs.get(eid)
+        row = db.execute("SELECT * FROM event_fights WHERE event_id=? AND bout_order=?", (eid, n)).fetchone()
+        if not e or not row:
+            abort(404)
+        x = dict(row)
+        fighters = fighters_all(db)
+        sides = []
+        for key, opp_key in (("a", "b"), ("b", "a")):
+            fid, name = x[f"fighter_{key}_id"], x[f"fighter_{key}"]
+            opp_id, opp_name = x[f"fighter_{opp_key}_id"], x[f"fighter_{opp_key}"]
+            f = fighters.get(fid) if fid else None
+            bundle = fighter_bundle(db, fid) if f else None
+            # 같은 두 선수의 몇 번째 맞대결인지 (재대결이면 그에 맞는 이야기를 고름)
+            story = None
+            if f:
+                stories = [dict(r) for r in db.execute(
+                    "SELECT * FROM fighter_stories WHERE fighter_id=? ORDER BY ref", (fid,))
+                    if _words_in(opp_name, r["opponent"]) or (opp_id and fighters.get(opp_id) and
+                                                              _words_in(fighters[opp_id].get("name"), r["opponent"]))]
+                if stories:
+                    pair = [b for b in reversed(bundle["bc"]) if b["opp"] == opp_name or
+                            (opp_id and b.get("opp_id") == opp_id)]
+                    idx = next((i for i, b in enumerate(pair) if b["event_id"] == eid), len(pair) - 1)
+                    story = stories[min(max(idx, 0), len(stories) - 1)]
+            sides.append({"name": name, "id": fid, "f": f, "bundle": bundle, "story": story,
+                          "won": bool(x["winner"]) and x["winner"] == name})
+        # 두 선수의 블랙컴뱃 맞대결 기록
+        h2h = []
+        a_id, b_id = x["fighter_a_id"], x["fighter_b_id"]
+        for r in db.execute("SELECT * FROM event_fights WHERE (fighter_a=? AND fighter_b=?) OR (fighter_a=? AND fighter_b=?)"
+                            + (" OR (fighter_a_id=? AND fighter_b_id=?) OR (fighter_a_id=? AND fighter_b_id=?)" if a_id and b_id else ""),
+                            (x["fighter_a"], x["fighter_b"], x["fighter_b"], x["fighter_a"],
+                             *((a_id, b_id, b_id, a_id) if a_id and b_id else ()))):
+            r = dict(r)
+            r["event"] = evs.get(r["event_id"], {})
+            if r not in h2h:
+                h2h.append(r)
+        h2h.sort(key=lambda r: r["event"].get("date") or "")
+    return render_template("fight.html", e=e, x=x, sides=sides, h2h=h2h, video_id=youtube_id(x.get("video_url")))
+
+
 @app.route("/rankings")
 def rankings():
     with dbm.get_db() as db:

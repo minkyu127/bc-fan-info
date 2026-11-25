@@ -43,7 +43,8 @@ CREATE TABLE IF NOT EXISTS fighters (
     official_url TEXT,
     namu_title TEXT,
     photo_url TEXT,
-    updated_at TEXT
+    updated_at TEXT,
+    summary TEXT                  -- 선수 서사 요약 (나무위키 개요)
 );
 CREATE TABLE IF NOT EXISTS rankings (
     weight_class TEXT,
@@ -84,7 +85,9 @@ CREATE TABLE IF NOT EXISTS event_fights (
     result_text TEXT,
     winner TEXT,
     scorecard TEXT,               -- 판정 채점 (예: 30-27, 29-28, 30-27)
-    video_url TEXT                -- 블랙컴뱃 공식 유튜브 경기 영상
+    video_url TEXT,               -- 블랙컴뱃 공식 유튜브 경기 영상
+    story TEXT,                   -- 경기 이야기 요약 (나무위키 대회 문서)
+    story_ref TEXT                -- 원문 위치 (나무위키 문단 번호)
 );
 CREATE TABLE IF NOT EXISTS signings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -95,6 +98,12 @@ CREATE TABLE IF NOT EXISTS signings (
     program TEXT,                 -- 블랙 테이블 / 직접 입력 ...
     description TEXT,
     source TEXT                   -- namu / manual
+);
+CREATE TABLE IF NOT EXISTS fighter_stories (   -- 선수 문서의 'vs. 상대' 경기 이야기
+    fighter_id TEXT,
+    opponent TEXT,
+    ref TEXT,
+    text TEXT
 );
 CREATE TABLE IF NOT EXISTS overrides (
     entity TEXT, entity_id TEXT, field TEXT, value TEXT,
@@ -138,8 +147,12 @@ def init_db():
         cols = [r["name"] for r in db.execute("PRAGMA table_info(event_fights)")]
         if "scorecard" not in cols:
             db.execute("ALTER TABLE event_fights ADD COLUMN scorecard TEXT")
-        if "video_url" not in cols:
-            db.execute("ALTER TABLE event_fights ADD COLUMN video_url TEXT")
+        for col in ("video_url", "story", "story_ref"):
+            if col not in cols:
+                db.execute(f"ALTER TABLE event_fights ADD COLUMN {col} TEXT")
+        fcols = [r["name"] for r in db.execute("PRAGMA table_info(fighters)")]
+        if "summary" not in fcols:
+            db.execute("ALTER TABLE fighters ADD COLUMN summary TEXT")
 
 
 def set_meta(db, key, value):

@@ -345,9 +345,75 @@ def parse_namu_ranking(html):
     return result
 
 
+HEADINGS = ("h2", "h3", "h4", "h5", "h6")
+
+
+def section_text(h, limit=600):
+    """제목(h) 바로 아래 글을 다음 제목 전까지 모아서 limit 글자 안쪽 요약으로 돌려줌 (표·각주 제외)"""
+    from bs4 import NavigableString, Tag
+    parts = []
+    for el in h.next_elements:
+        if isinstance(el, Tag) and el.name in HEADINGS:
+            break
+        if not isinstance(el, NavigableString):
+            continue
+        p = el.parent
+        if p is None or p.find_parent("table") or p.name in ("table", "td", "th", "sup") \
+                or p.find_parent(HEADINGS) or p.find_parent("sup"):
+            continue
+        t = str(el).strip()
+        if t:
+            parts.append(t)
+    text = clean(" ".join(parts))
+    text = re.sub(r"\s+([.,!?)])", r"\1", text)
+    if len(text) <= limit:
+        return text
+    cut = text[:limit]
+    end = max(cut.rfind(". "), cut.rfind("다. "), cut.rfind("다."))
+    return (cut[:end + 2] if end > limit * 0.5 else cut).rstrip() + " …"
+
+
+def heading_number(h):
+    m = re.match(r"^([\d.]+)\s", clean(h.get_text(" ")))
+    return m.group(1).rstrip(".") if m else ""
+
+
+def parse_fight_stories(html):
+    """대회 문서의 '선수A vs 선수B' 제목 아래 글 → [{title, ref, text}]"""
+    s = soup(html)
+    out = []
+    for h in s.find_all(HEADINGS):
+        title = clean(h.get_text(" "))
+        if not re.search(r"\bvs\.?\b", title, re.I):
+            continue
+        text = section_text(h)
+        if len(text) >= 30:
+            out.append({"title": re.sub(r"^[\d.]+\s*", "", title), "ref": heading_number(h), "text": text})
+    return out
+
+
 def parse_namu_fighter(html):
     s = soup(html)
     info = {}
+    parts = []
+    for h in s.find_all("h2"):
+        t = h.get_text()
+        if "개요" in t or "파이팅 스타일" in t or "플레이 스타일" in t:
+            txt = section_text(h, 350)
+            if txt:
+                parts.append(txt)
+    if parts:
+        info["summary"] = " ".join(parts)
+    # 선수 경력의 'vs. 상대' 문단 = 그 경기에 대한 이야기
+    info["stories"] = []
+    for h in s.find_all(("h3", "h4", "h5")):
+        title = re.sub(r"^[\d.]+\s*", "", clean(h.get_text(" ")))
+        m = re.match(r"^vs\.?\s*(.+)$", title, re.I)
+        if not m:
+            continue
+        text = section_text(h, 600)
+        if len(text) >= 30:
+            info["stories"].append({"opponent": m.group(1).strip(), "ref": heading_number(h), "text": text})
     for t in s.find_all("table"):
         for r in t.find_all("tr"):
             cs = cells_of(r)
@@ -913,12 +979,15 @@ def update_fighter_details(db, f):
             html = f.namu(fr["namu_title"], ttl_hours=24)
             if html:
                 n = parse_namu_fighter(html)
-                for k in ("birth", "record_text"):
+                for k in ("birth", "record_text", "summary"):
                     if n.get(k):
                         data[k] = n[k]
                 if n.get("height") and not data.get("height"):
                     data["height"] = n["height"]
                 fights = n["fights"]
+                db.execute("DELETE FROM fighter_stories WHERE fighter_id=?", (fr["id"],))
+                db.executemany("INSERT INTO fighter_stories VALUES (?,?,?,?)",
+                               [(fr["id"], st["opponent"], st["ref"], st["text"]) for st in n["stories"]])
         _upsert_fighter(db, fr["id"], data)
         if fights:
             db.execute("DELETE FROM fighter_fights WHERE fighter_id=?", (fr["id"],))
@@ -929,6 +998,25 @@ def update_fighter_details(db, f):
         if i % 10 == 0:
             log(f"  {i}/{len(fighters)}명 완료")
             db.commit()
+
+
+def _words_in(name, text):
+    """'더 빅 가이 양해준' → 두 글자 이상 단어 하나라도 text에 있으면 True"""
+    return any(len(w) >= 2 and w in text for w in (name or "").split(" "))
+
+
+def attach_stories(db, event_id, stories):
+    """대회 문서의 경기별 이야기를 같은 두 선수의 경기에 붙임"""
+    if not stories:
+        return
+    rows = db.execute("SELECT rowid, fighter_a, fighter_b FROM event_fights WHERE event_id=?",
+                      (event_id,)).fetchall()
+    for st in stories:
+        for r in rows:
+            if _words_in(r["fighter_a"], st["title"]) and _words_in(r["fighter_b"], st["title"]):
+                db.execute("UPDATE event_fights SET story=?, story_ref=? WHERE rowid=?",
+                           (st["text"], st["ref"], r["rowid"]))
+                break
 
 
 FIGHT_INSERT = ("INSERT INTO event_fights (event_id, bout_order, bout_label, fighter_a, fighter_a_id, "
@@ -1006,6 +1094,7 @@ def update_events(db, f):
                         winner = nm
             db.execute(FIGHT_INSERT, (e["id"], n, x["bout_label"], a_name, a_id, b_name, b_id,
                                       x["result"], winner, x.get("score", "")))
+        attach_stories(db, e["id"], parse_fight_stories(html))
         if i % 5 == 0:
             db.commit()
 
