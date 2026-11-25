@@ -28,6 +28,26 @@
   </div>
 </section>
 
+<section class="card rivalry">
+  <h2>⚔ {{ x.fighter_a }} vs {{ x.fighter_b }}, 두 선수의 서사</h2>
+  {% for part in rivalry %}
+    <div class="chapter">
+      <div class="chapter-no">{{ loop.index }}</div>
+      <div>
+        <h3>{{ part.title }}</h3>
+        <p>{{ part.text }}</p>
+      </div>
+    </div>
+  {% endfor %}
+  {% if news %}
+    <div class="rel-news">
+      <div class="eyebrow">이 맞대결 관련 기사</div>
+      {% for n in news %}<a href="{{ n.url }}" target="_blank" rel="noopener">{{ n.title }} <span class="meta">· {{ n.source }}</span> ↗</a>{% endfor %}
+    </div>
+  {% endif %}
+  <p class="meta">랭킹·전적·영입 기록·기사와 나무위키 내용을 바탕으로 자동으로 정리한 이야기예요. 랭킹은 현재 기준이에요.</p>
+</section>
+
 {% if video_id %}
 <section class="card">
   <h2>▶ 공식 경기 영상</h2>
@@ -40,7 +60,7 @@
 {% endif %}
 
 <section class="card">
-  <h2>📖 이 경기 이야기</h2>
+  <h2>📖 원문 이야기 <small class="meta">나무위키 요약</small></h2>
   {% set has_story = x.story or sides[0].story or sides[1].story %}
   {% if x.story %}
     <div class="story">
@@ -61,7 +81,7 @@
 <div class="grid-2">
 {% for s in sides %}
   <section class="card">
-    <h2>{{ s.name }} 서사</h2>
+    <h2>{{ s.name }} 선수 소개</h2>
     {% if s.f and s.f.summary %}
       <p class="story-p">{{ s.f.summary }}</p>
       {% if s.f.namu_title %}<a class="src" href="https://namu.wiki/w/{{ s.f.namu_title|urlencode }}" target="_blank" rel="noopener">나무위키 선수 문서 ↗</a>{% endif %}
