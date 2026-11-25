@@ -316,6 +316,9 @@ def news():
     return render_template("news.html", items=items, cats=NEWS_CATS, cat=cat, kind=kind, counts=counts)
 
 
+SHOW_STORY = False  # 경기 서사 표시 (잠시 꺼둠. True로 바꾸면 다시 보임)
+
+
 def youtube_id(url):
     m = re.search(r"(?:v=|youtu\.be/|/embed/)([\w-]{11})", url or "")
     return m.group(1) if m else None
@@ -396,7 +399,7 @@ def fight(n, eid):
                     "SELECT text FROM fighter_stories WHERE fighter_id=?", (s["id"],))]
         rivalry = narrative.build(x, e, sides, h2h, signings, news, story_texts, country_name)
     return render_template("fight.html", e=e, x=x, sides=sides, h2h=h2h, rivalry=rivalry, news=news,
-                           video_id=youtube_id(x.get("video_url")))
+                           video_id=youtube_id(x.get("video_url")), show_story=SHOW_STORY)
 
 
 @app.route("/rankings")
