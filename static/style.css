@@ -61,6 +61,8 @@ small { font-weight: 400; }
   background: var(--gold); border-radius: 3px;
 }
 .sub-nav { display: flex; gap: 2px; }
+.top-search input { width: 150px; padding: 7px 12px; font-size: .88rem; border-radius: 999px; background: #141414; }
+.top-search input:focus { width: 190px; }
 .sub-nav a { padding: 7px 10px; border-radius: 8px; font-size: .88rem; color: var(--muted); }
 .sub-nav a:hover, .sub-nav a.on { color: var(--gold); background: #141414; }
 
@@ -154,6 +156,12 @@ footer a { text-decoration: underline; }
 .bout .side.right .who-txt { justify-items: end; }
 .photo.bout-pic { width: 64px; height: 64px; border-radius: 12px; flex: none; font-size: 1.4rem; }
 .bout .side.won .photo.bout-pic { box-shadow: 0 0 0 2px var(--gold); }
+.video-btn {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 6px;
+  font-size: .8rem; font-weight: 800; color: #fff; background: #c4302b;
+  border-radius: 6px; padding: 3px 10px;
+}
+.video-btn:hover { color: #fff; filter: brightness(1.15); }
 .scorecard { display: flex; justify-content: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
 .scorecard span { background: #0f0f0f; border: 1px solid #333; border-radius: 6px; padding: 2px 8px; font-size: .8rem; font-weight: 700; color: #ddd; }
 .scorecard i { font-style: normal; color: var(--muted); font-weight: 500; margin-right: 4px; font-size: .72rem; }
@@ -312,6 +320,8 @@ h1 .fav { background: var(--card-2); vertical-align: middle; }
   .main-nav a { padding: 8px 12px; font-size: .98rem; white-space: nowrap; }
   .main-nav a.on::after { bottom: -2px; }
   .sub-nav { margin-left: auto; }
+  .top-search input, .top-search input:focus { width: 110px; }
+  .sub-nav a { padding: 6px 6px; font-size: .8rem; }
   .grid-2 { grid-template-columns: 1fr; }
   .profile { flex-direction: column; }
   .photo.xl { width: 160px; height: 190px; }
