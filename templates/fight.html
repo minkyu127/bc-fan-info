@@ -28,6 +28,7 @@
   </div>
 </section>
 
+{% if show_story %}
 <section class="card rivalry">
   <h2>⚔ {{ x.fighter_a }} vs {{ x.fighter_b }}, 두 선수의 서사</h2>
   {% for part in rivalry %}
@@ -47,6 +48,7 @@
   {% endif %}
   <p class="meta">랭킹·전적·영입 기록·기사와 나무위키 내용을 바탕으로 자동으로 정리한 이야기예요. 랭킹은 현재 기준이에요.</p>
 </section>
+{% endif %}
 
 {% if video_id %}
 <section class="card">
@@ -59,6 +61,7 @@
 </section>
 {% endif %}
 
+{% if show_story %}
 <section class="card">
   <h2>📖 원문 이야기 <small class="meta">나무위키 요약</small></h2>
   {% set has_story = x.story or sides[0].story or sides[1].story %}
@@ -77,19 +80,18 @@
   {% endfor %}
   {% if not has_story %}<p class="muted">아직 이 경기에 대한 이야기가 정리되지 않았어요.</p>{% endif %}
 </section>
+{% endif %}
 
 <div class="grid-2">
 {% for s in sides %}
   <section class="card">
-    <h2>{{ s.name }} 선수 소개</h2>
-    {% if s.f and s.f.summary %}
-      <p class="story-p">{{ s.f.summary }}</p>
-      {% if s.f.namu_title %}<a class="src" href="https://namu.wiki/w/{{ s.f.namu_title|urlencode }}" target="_blank" rel="noopener">나무위키 선수 문서 ↗</a>{% endif %}
-    {% elif s.f and s.f.note %}
-      <p class="story-p">{{ s.f.note }}</p>
-    {% else %}
-      <p class="muted">정리된 선수 이야기가 없어요.</p>
+    <h2>{% if s.f %}<a href="{{ url_for('fighter', fid=s.id) }}">{{ s.name }}</a>{% else %}{{ s.name }}{% endif %}</h2>
+    {% if show_story %}
+      {% if s.f and s.f.summary %}
+        <p class="story-p">{{ s.f.summary }}</p>
+      {% endif %}
     {% endif %}
+    {% if s.f %}<div class="meta">{{ s.f.weight_class or '' }}{% if s.rank %} · {{ rank_label(s.rank[1]) }}{% endif %}{% if s.f.note %} · {{ s.f.note }}{% endif %}</div>{% endif %}
     {% if s.bundle and s.bundle.bc %}
       <h3>블랙컴뱃 최근 경기</h3>
       <div class="mini-fights">
@@ -113,5 +115,5 @@
   {% endfor %}
 </section>
 {% endif %}
-<p class="meta">이야기 출처: 나무위키 (CC BY-NC-SA 2.0 KR) 요약 · 전체 글은 원문 링크에서 볼 수 있어요.</p>
+{% if show_story %}<p class="meta">이야기 출처: 나무위키 (CC BY-NC-SA 2.0 KR) 요약 · 전체 글은 원문 링크에서 볼 수 있어요.</p>{% endif %}
 {% endblock %}

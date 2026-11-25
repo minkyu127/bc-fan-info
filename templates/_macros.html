@@ -32,9 +32,9 @@
     </div>
     <div class="vs">
       <div class="bout-label">{{ x.bout_label }}</div>
-      <a class="bout-link" href="{{ url_for('fight', n=x.bout_order, eid=x.event_id) }}" title="경기 상세 · 선수 서사 보기">
+      <a class="bout-link" href="{{ url_for('fight', n=x.bout_order, eid=x.event_id) }}" title="경기 상세 보기">
       {% if x.result_text %}<div class="bout-result">{{ x.result_text }}</div>{% else %}<div class="bout-result muted">VS</div>{% endif %}
-      <div class="detail-hint">📖 경기 상세 · 서사{% if x.story %} ✦{% endif %}</div>
+      <div class="detail-hint">경기 상세 →</div>
       </a>
       {% if x.video_url %}
         <a class="video-btn" href="{{ x.video_url }}" target="_blank" rel="noopener" title="블랙컴뱃 공식 유튜브">▶ 경기 영상</a>
