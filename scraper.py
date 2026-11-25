@@ -640,6 +640,81 @@ def parse_versus(html):
     return out
 
 
+CL_SEASONS = ["2022-23", "2024-25", "2026-27"]  # 없는 시즌 문서는 건너뜀
+
+
+def parse_cl_season(html, season):
+    """'블랙컴뱃/챔피언스 리그/2022-23시즌' → 회차별 대회 (날짜·팀 점수·경기 결과)"""
+    s = soup(html)
+    out = []
+    for h in s.find_all("h3"):
+        m = re.match(r"^[\d.]+\s*(\d+)\s*회차\s*/\s*(.+)$", clean(h.get_text(" ")))
+        if not m:
+            continue
+        rnd, matchup = int(m.group(1)), m.group(2).strip()
+        tables = []
+        for el in h.find_all_next(["h2", "h3", "table"]):
+            if el.name in ("h2", "h3"):
+                break
+            if not el.find_parent("table"):
+                tables.append(el)
+        iso, venue, score, teams, fights = None, "", "", [], []
+        for t in tables:
+            txt = clean(t.get_text(" ")).replace("✊", " ")
+            if "CHAMPIONS LEAGUE" not in txt.upper():
+                continue
+            dm = re.search(r"(\d{4})\.\s+(\d{1,2})\.\s+(\d{1,2})", txt)  # '2022. 10. 1' (경기 결과 표의 날짜)
+            if dm and not iso:
+                try:
+                    iso = date(int(dm.group(1)), int(dm.group(2)), int(dm.group(3))).isoformat()
+                except ValueError:
+                    pass
+            rows = t.find_all("tr")
+            for i, r in enumerate(rows):
+                cs = cells_of(r)
+                rt = clean(r.get_text(" ")).replace("✊", " ").strip()
+                if i == 1 and len(cs) == 1:
+                    venue = rt.split("|")[-1].strip()
+                sc = re.search(r"(\d+)\s*:\s*(\d+)\s*$", rt) if "라운드" in rt or len(cs) == 3 and not cs[0].get_text(strip=True) else None
+                if sc and not score:
+                    score = f"{sc.group(1)} : {sc.group(2)}"
+                    if i + 1 < len(rows):
+                        teams = [clean(c.get_text(" ")) for c in cells_of(rows[i + 1])]
+                    continue
+                if len(cs) < 2:
+                    continue
+                lt = clean(cs[0].get_text(" ")).replace("✊", " ").strip()  # ✊ = 승자 표시
+                rt2 = clean(cs[-1].get_text(" ")).replace("✊", " ").strip()
+                lm = re.search(r"\((승|패|무)[^)]*\)\s*$", lt)
+                rm = re.search(r"\((승|패|무)[^)]*\)\s*$", rt2)
+                if not lm or not rm:
+                    continue
+                label = clean(cs[1].get_text(" ")).split("주심")[0].strip() if len(cs) >= 3 else ""
+                a_part, b_part = lt[:lm.start()].strip(), rt2[:rm.start()].strip()
+                def split_how(part):
+                    """'옥은찬 라텔 1R 3:24 TKO' → ('옥은찬 라텔', '1R 3:24 TKO')"""
+                    mm = re.search(r"(\d+\s*R.*|[^ ]*판정.*)$", part)
+                    return (part[:mm.start()].strip(), mm.group(1).strip()) if mm else (part, "")
+                a, a_how = split_how(a_part)  # 이름+링네임 (저장할 때 선수 목록과 맞춰 봄)
+                b, b_how = split_how(b_part)
+
+                def res(name, h):
+                    first = name.split(" ")[0]
+                    return f"{first} {h}" if h.endswith("승") else f"{first} {h} 승".replace("  ", " ")
+                if lm.group(1) == "승":
+                    winner, result = a, res(a, a_how)
+                elif rm.group(1) == "승":
+                    winner, result = b, res(b, b_how)
+                else:
+                    winner, result = "", "무승부"
+                fights.append({"bout_label": label, "a": a, "a_title": None, "b": b, "b_title": None,
+                               "result": result, "winner": winner})
+        main = f"{teams[0]} {score} {teams[-1]}" if score and len(teams) >= 2 else matchup
+        out.append({"id": f"CL:{season}:{rnd:02d}", "name": f"{season} 챔피언스 리그 {rnd}회차: {matchup}",
+                    "date": iso, "venue": venue, "main_event": main, "fights": fights})
+    return out
+
+
 def _cell_text(cell):
     """'#3 링네임 홍길동' → '링네임 홍길동' (순위 표시 제거)"""
     txt = clean(cell.get_text(" "))
@@ -947,6 +1022,33 @@ def update_events(db, f):
             db.execute(FIGHT_INSERT, (v["id"], n, x["bout_label"], a_name, a_id, b_name, b_id,
                                       result, winner, ""))
     log(f"  대항전 {len(versus)}개")
+
+    step("⑤-3 챔피언스 리그 가져오는 중")
+    cl_total = 0
+    for season in CL_SEASONS:
+        html = f.namu(f"블랙컴뱃/챔피언스 리그/{season}시즌", ttl_hours=24)
+        rounds = parse_cl_season(html, season) if html else []
+        if not rounds:
+            continue
+        # 연도별 목록에 있던 '시즌 묶음' 항목은 회차별 항목으로 대체
+        db.execute("DELETE FROM events WHERE source='namu' AND series='챔피언스 리그' AND id NOT LIKE 'CL:%'")
+        for v in rounds:
+            db.execute("INSERT OR REPLACE INTO events VALUES (?,?,?,?,?,?,?,?)",
+                       (v["id"], v["name"], v["date"], v["venue"], v["main_event"], "챔피언스 리그",
+                        f"블랙컴뱃/챔피언스 리그/{season}시즌", "namu"))
+            db.execute("DELETE FROM event_fights WHERE event_id=?", (v["id"],))
+            for n, x in enumerate(v["fights"], 1):
+                a_name, a_id = resolve(x["a"], None)
+                b_name, b_id = resolve(x["b"], None)
+                winner = a_name if x["winner"] == x["a"] else b_name if x["winner"] == x["b"] else ""
+                result = x["result"]
+                if winner and result:  # 결과 글 맨 앞 이름을 정리된 이름으로
+                    result = winner.split(" ")[0] if not (a_id or b_id) else winner
+                    result = result + " " + x["result"].split(" ", 1)[1] if " " in x["result"] else x["result"]
+                db.execute(FIGHT_INSERT, (v["id"], n, x["bout_label"], a_name, a_id, b_name, b_id,
+                                          result, winner, ""))
+        cl_total += len(rounds)
+    log(f"  챔피언스 리그 {cl_total}회차")
 
 
 # ---------------------------------------------------------------- 뉴스

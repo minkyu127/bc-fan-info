@@ -84,7 +84,8 @@ FIGHTER_FIELDS = [  # (필드, 화면 이름) — 관리자 수정 화면에 쓰
 ]
 EVENT_FIELDS = [("name", "대회 이름"), ("date", "날짜 (YYYY-MM-DD)"), ("venue", "장소"),
                 ("main_event", "메인 이벤트"), ("series", "시리즈")]
-SERIES = ["넘버링", "블랙컵", "대항전", "라이즈", "챔피언스 리그", "비긴즈", "프로 오디션", "기타"]
+SERIES = ["넘버링", "블랙컵", "대항전", "라이즈", "챔피언스 리그", "비긴즈", "기타"]
+HIDDEN_SERIES = {"프로 오디션"}  # 경기 일정에서 빼는 종류
 
 
 # ---------------------------------------------------------------- 데이터 읽기
@@ -97,6 +98,7 @@ def fighters_all(db):
 def events_all(db):
     rows = db.execute("SELECT * FROM events").fetchall()
     evs = dbm.apply_overrides(rows, dbm.load_overrides(db, "event"))
+    evs = [e for e in evs if e.get("series") not in HIDDEN_SERIES]
     return sorted(evs, key=lambda e: e.get("date") or "9999-99-99")
 
 
