@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "api/index.py": {
+      "includeFiles": "{app.py,db.py,scraper.py,templates/**,static/**,data/blackcombat.db}",
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/api/index" }
+  ]
+}

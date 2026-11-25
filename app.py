@@ -53,6 +53,8 @@ def is_admin():
 def admin_required(view):
     @functools.wraps(view)
     def wrapper(*args, **kwargs):
+        if dbm.READ_ONLY:  # Vercel 같은 읽기 전용 서버에서는 관리 기능을 쓰지 않음
+            return render_template("readonly.html"), 200
         if not is_admin():
             return redirect(url_for("login", next=request.path))
         return view(*args, **kwargs)
@@ -181,8 +183,9 @@ def page_info():
     with dbm.get_db() as db:
         last = dbm.get_meta(db, "last_update")
         allow = public_update_allowed(db)
-    return dict(last_update=last, update_status=scraper.STATUS, is_admin=is_admin(),
-                public_update=allow)
+    return dict(last_update=last, update_status=scraper.STATUS,
+                is_admin=is_admin() and not dbm.READ_ONLY,
+                public_update=allow and not dbm.READ_ONLY, read_only=dbm.READ_ONLY)
 
 
 # ---------------------------------------------------------------- 페이지
@@ -451,6 +454,8 @@ def api_fighters():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    if dbm.READ_ONLY:
+        return render_template("readonly.html")
     if LOCAL_MODE:
         return redirect(url_for("admin"))
     error = None
@@ -476,6 +481,8 @@ def logout():
 @app.post("/update")
 def public_update():
     """관리자가 허용한 경우 누구나 누를 수 있는 빠른 업데이트"""
+    if dbm.READ_ONLY:
+        abort(403)
     with dbm.get_db() as db:
         if not (is_admin() or public_update_allowed(db)):
             abort(403)
@@ -573,7 +580,7 @@ def admin_event(eid):
         ov = dbm.load_overrides(db, "event").get(eid, {})
     return render_template("admin_edit.html", kind="대회", fields=EVENT_FIELDS, raw=dict(raw), ov=ov,
                            back=url_for("event", eid=eid), event_mode=True,
-                           manual=raw["source"] == "manual")
+                           manual=raw["source"] == "manual", series_list=SERIES)
 
 
 @app.post("/admin/event-new")

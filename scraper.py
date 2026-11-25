@@ -784,6 +784,8 @@ def _run(mode):
             db.commit()
             update_signings(db, f)
             db.commit()
+            update_videos(db, f)
+            db.commit()
             update_news(db, f)
             dbm.set_meta(db, "last_update", datetime.now().strftime("%Y-%m-%d %H:%M"))
             dbm.set_meta(db, "last_mode", mode)
@@ -1049,6 +1051,128 @@ def update_events(db, f):
                                           result, winner, ""))
         cl_total += len(rounds)
     log(f"  챔피언스 리그 {cl_total}회차")
+
+
+# ---------------------------------------------------------------- 공식 경기 영상
+
+OFFICIAL_EVENT_CATEGORIES = {"N": "넘버링", "BC": "블랙컵", "R": "라이즈", "C": "챔피언스 리그", "E": None}
+OFF_DATE = re.compile(r"(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일")
+
+
+def parse_official_event_list(html):
+    """공식 event.php → [{seq, name, date}]"""
+    s = soup(html)
+    out = []
+    for li in s.select(".event_list li"):
+        btn = li.find(attrs={"onclick": re.compile(r"eventSeq=\d+")})
+        if not btn:
+            continue
+        seq = re.search(r"eventSeq=(\d+)", btn["onclick"]).group(1)
+        b = li.find("b")
+        m = OFF_DATE.search(li.get_text(" "))
+        iso = None
+        if m:
+            try:
+                iso = date(int(m.group(1)), int(m.group(2)), int(m.group(3))).isoformat()
+            except ValueError:
+                pass
+        out.append({"seq": seq, "name": clean(b.get_text()) if b else "", "date": iso})
+    return out
+
+
+def youtube_clean(url):
+    m = re.search(r"(?:youtu\.be/|v=|/embed/|/shorts/)([\w-]{11})", url or "")
+    return f"https://www.youtube.com/watch?v={m.group(1)}" if m else None
+
+
+def parse_official_event_videos(html):
+    """공식 eventDetail.php → [{ids: [선수번호 2개], names: 글, video: 유튜브 주소}]"""
+    s = soup(html)
+    out = []
+    for node in s.find_all(string=re.compile(r"FULL\s*FIGHT", re.I)):
+        blk = node.parent
+        while blk is not None and blk.parent is not None:
+            fighters = blk.find_all("a", href=re.compile(r"/fighter/\d+"))
+            if len(fighters) >= 2:
+                break
+            parent = blk.parent
+            if len(parent.find_all(string=re.compile(r"FULL\s*FIGHT", re.I))) > 1:
+                break  # 다른 경기까지 묶이기 전에 멈춤
+            blk = parent
+        if blk is None:
+            continue
+        ids = []
+        for a in blk.find_all("a", href=re.compile(r"/fighter/\d+")):
+            i = re.search(r"/fighter/(\d+)", a["href"]).group(1)
+            if i not in ids:
+                ids.append(i)
+        video = None
+        for a in blk.find_all("a", href=True):
+            video = youtube_clean(a["href"])
+            if video:
+                break
+        if video:
+            out.append({"ids": ids[:2], "text": clean(blk.get_text(" ")), "video": video})
+    return out
+
+
+def update_videos(db, f):
+    """공식 홈페이지의 대회 상세 페이지에서 경기별 공식 유튜브 영상 링크를 가져와 연결"""
+    step("⑥-2 공식 경기 영상 링크 가져오는 중")
+    official = []
+    for cat, series in OFFICIAL_EVENT_CATEGORIES.items():
+        html = f.get(f"{OFFICIAL}/event.php?eventCategory={cat}", ttl_hours=12)
+        for e in parse_official_event_list(html) if html else []:
+            e["series"] = series
+            official.append(e)
+    ours = {}
+    for r in db.execute("SELECT id, date, series FROM events WHERE date IS NOT NULL"):
+        ours.setdefault(r["date"], []).append(dict(r))
+    today = date.today()
+    linked = 0
+    STATUS["total"] = len(official)
+    for i, oe in enumerate(official, 1):
+        STATUS["done"] = i
+        # 같은 날 열린 모든 대회와 맞춰 봄 (예: 대항전은 넘버링 대회 안에서 열림). 선수로 확인하니 섞이지 않음
+        cands = ours.get(oe["date"] or "", [])
+        if not cands:
+            continue
+        # '블랙컴뱃 16' → 공식 이름 '블랙컴뱃 16: EXODUS' 처럼 부제가 있으면 이름을 보강
+        if ":" in oe["name"]:
+            num = re.search(r"블랙컴뱃\s*(\d+)\s*:", oe["name"])
+            for c in cands:
+                row = db.execute("SELECT name FROM events WHERE id=?", (c["id"],)).fetchone()
+                m2 = re.match(r"^블랙컴뱃\s*0*(\d+)$", row["name"] or "") if row else None
+                if num and m2 and int(num.group(1)) == int(m2.group(1)):
+                    db.execute("UPDATE events SET name=? WHERE id=?", (oe["name"], c["id"]))
+        recent = (today - date.fromisoformat(oe["date"])).days < 30
+        html = f.get(f"{OFFICIAL}/eventDetail.php?eventSeq={oe['seq']}", ttl_hours=6 if recent else 24 * 30)
+        if not html:
+            continue
+        vids = parse_official_event_videos(html)
+        for ev in cands:
+            rows = db.execute("SELECT rowid, fighter_a, fighter_a_id, fighter_b, fighter_b_id FROM event_fights "
+                              "WHERE event_id=?", (ev["id"],)).fetchall()
+            for v in vids:
+                hit = None
+                for r in rows:
+                    ids = {r["fighter_a_id"], r["fighter_b_id"]} - {None}
+                    if ids and ids & set(v["ids"]):
+                        hit = r
+                        break
+                if not hit:  # 선수 번호가 없으면 이름으로
+                    def seen_in(name, text):  # '더 빅 가이 양해준' → 두 글자 이상 단어 중 하나라도 있으면
+                        return any(len(w) >= 2 and w in text for w in (name or "").split(" "))
+                    for r in rows:
+                        if seen_in(r["fighter_a"], v["text"]) and seen_in(r["fighter_b"], v["text"]):
+                            hit = r
+                            break
+                if hit:
+                    db.execute("UPDATE event_fights SET video_url=? WHERE rowid=?", (v["video"], hit["rowid"]))
+                    linked += 1
+        if i % 10 == 0:
+            db.commit()
+    log(f"  경기 영상 {linked}개 연결")
 
 
 # ---------------------------------------------------------------- 뉴스

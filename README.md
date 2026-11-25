@@ -29,7 +29,14 @@
 
 내 컴퓨터에서는 비밀번호 없이 관리 화면을 쓸 수 있어요.
 
-## 서버에 배포
+## Vercel에 배포 (무료, 보기 전용)
+1. Vercel에서 이 저장소를 Import → 설정 그대로 Deploy (`vercel.json`, `api/index.py` 사용)
+2. 사이트는 저장소의 `data/blackcombat.db`를 읽어서 보여줘요 (관리·수정 기능은 꺼짐)
+3. GitHub Actions(`.github/workflows/update-data.yml`)가 매일 아침 데이터를 새로 모아 DB를 올리면,
+   Vercel이 자동으로 다시 배포해요. Actions 탭 → "데이터 자동 업데이트" → Run workflow 로 바로 실행할 수도 있어요.
+4. 정보를 직접 고치고 싶으면 내 PC에서 `시작.bat` → 관리 화면에서 고친 뒤 `data/blackcombat.db`를 저장소에 올리세요.
+
+## 서버에 배포 (항상 켜진 서버)
 ```bash
 pip install -r requirements.txt
 gunicorn -w 1 --threads 8 -b 0.0.0.0:8000 app:app

@@ -5,12 +5,24 @@
 - 직접 수정한 내용: overrides 테이블 (자동 수집이 덮어쓰지 않음)
 """
 import os
+import shutil
 import sqlite3
 from contextlib import contextmanager
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 DB_PATH = os.path.join(DATA_DIR, "blackcombat.db")
+
+# Vercel(서버리스)에서는 프로그램 폴더에 쓸 수 없어서, 함께 올린 DB를 /tmp로 복사해 읽기 전용처럼 씀
+READ_ONLY = bool(os.environ.get("VERCEL"))
+if READ_ONLY:
+    _bundled = DB_PATH
+    import tempfile
+    DATA_DIR = os.path.join(tempfile.gettempdir(), "bcdata")  # Vercel에서는 /tmp/bcdata
+    DB_PATH = os.path.join(DATA_DIR, "blackcombat.db")
+    if not os.path.exists(DB_PATH) and os.path.exists(_bundled):
+        os.makedirs(DATA_DIR, exist_ok=True)
+        shutil.copyfile(_bundled, DB_PATH)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS fighters (
@@ -71,7 +83,8 @@ CREATE TABLE IF NOT EXISTS event_fights (
     fighter_b TEXT, fighter_b_id TEXT,
     result_text TEXT,
     winner TEXT,
-    scorecard TEXT                -- 판정 채점 (예: 30-27, 29-28, 30-27)
+    scorecard TEXT,               -- 판정 채점 (예: 30-27, 29-28, 30-27)
+    video_url TEXT                -- 블랙컴뱃 공식 유튜브 경기 영상
 );
 CREATE TABLE IF NOT EXISTS signings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -125,6 +138,8 @@ def init_db():
         cols = [r["name"] for r in db.execute("PRAGMA table_info(event_fights)")]
         if "scorecard" not in cols:
             db.execute("ALTER TABLE event_fights ADD COLUMN scorecard TEXT")
+        if "video_url" not in cols:
+            db.execute("ALTER TABLE event_fights ADD COLUMN video_url TEXT")
 
 
 def set_meta(db, key, value):
