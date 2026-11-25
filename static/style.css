@@ -51,9 +51,10 @@ small { font-weight: 400; }
 .logo-text { font-weight: 900; font-size: .78rem; line-height: 1.05; letter-spacing: .12em; color: var(--gold); }
 .main-nav { display: flex; gap: 4px; flex: 1; }
 .main-nav a {
-  padding: 10px 16px; border-radius: 10px; font-size: 1.05rem; font-weight: 700; color: #ddd;
-  position: relative;
+  padding: 10px 14px; border-radius: 10px; font-size: 1.05rem; font-weight: 700; color: #ddd;
+  position: relative; white-space: nowrap;
 }
+.sub-nav a { white-space: nowrap; }
 .main-nav a:hover { color: var(--gold); background: #141414; }
 .main-nav a.on { color: var(--gold); }
 .main-nav a.on::after {
@@ -156,6 +157,24 @@ footer a { text-decoration: underline; }
 .bout .side.right .who-txt { justify-items: end; }
 .photo.bout-pic { width: 64px; height: 64px; border-radius: 12px; flex: none; font-size: 1.4rem; }
 .bout .side.won .photo.bout-pic { box-shadow: 0 0 0 2px var(--gold); }
+.bout-link { display: block; border-radius: 8px; padding: 4px 6px; }
+.bout-link:hover { background: var(--gold-soft); }
+.detail-hint { font-size: .72rem; color: var(--muted); margin-top: 2px; }
+.bout-link:hover .detail-hint { color: var(--gold); }
+.center { text-align: center; }
+.fight-hero .fh-grid { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; margin: 14px 0; }
+.fh-side { text-align: center; display: grid; justify-items: center; gap: 4px; }
+.fh-side h2 { margin: 6px 0 0; }
+.fh-side.lost { opacity: .55; }
+.fh-side.won .photo { box-shadow: 0 0 0 3px var(--gold); }
+.bout-result.big { font-size: 1.2rem; }
+.video-embed { position: relative; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: #000; }
+.video-embed iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.story { border-left: 3px solid var(--gold); padding: 4px 0 4px 16px; margin: 14px 0; }
+.story p, .story-p { margin: 4px 0 8px; line-height: 1.75; color: #ddd; }
+.story-who { color: var(--gold); font-weight: 700; font-size: .9rem; }
+.src { color: var(--gold); font-size: .85rem; }
+.mini-fights { display: grid; gap: 6px; font-size: .92rem; }
 .video-btn {
   display: inline-flex; align-items: center; gap: 4px; margin-top: 6px;
   font-size: .8rem; font-weight: 800; color: #fff; background: #c4302b;
@@ -313,6 +332,12 @@ h1 .fav { background: var(--card-2); vertical-align: middle; }
 .form-grid label { display: grid; gap: 6px; font-weight: 600; font-size: .92rem; }
 
 /* ---------- 작은 화면 ---------- */
+@media (max-width: 1180px) {
+  .topbar-inner { height: auto; flex-wrap: wrap; gap: 8px; padding: 10px 14px; }
+  .main-nav { order: 3; flex: 0 0 100%; overflow-x: auto; scrollbar-width: none; }
+  .main-nav a.on::after { bottom: -2px; }
+  .top-search { margin-left: auto; }
+}
 @media (max-width: 900px) {
   .topbar-inner { height: auto; flex-wrap: wrap; gap: 8px; padding: 10px 14px; }
   .main-nav { order: 3; flex: 0 0 100%; overflow-x: auto; scrollbar-width: none; justify-content: space-between; }
