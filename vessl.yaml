@@ -1,0 +1,26 @@
+# VESSL AI 서비스 설정 (Provisioned 모드)
+# ADMIN_PASSWORD, SECRET_KEY 는 여기 적지 말고 VESSL 콘솔의 "Variables" → 비밀(secret) 변수로 넣으세요.
+name: bc-fan-info
+message: first deploy
+image: python:3.11-slim
+resources:
+  cluster: vessl-oci-sanjose
+  preset: cpu-medium
+import:
+  /app: git://github.com/minkyu127/bc-fan-info
+run:
+  - workdir: /app
+    command: |
+      pip install --no-cache-dir -r requirements.txt
+      gunicorn -w 1 --threads 8 --timeout 120 -b 0.0.0.0:8000 app:app
+env:
+  AUTO_UPDATE_HOURS: "6"
+ports:
+  - name: web
+    type: http
+    port: 8000
+autoscaling:
+  min: 1
+  max: 1
+  metric: cpu
+  target: 50
