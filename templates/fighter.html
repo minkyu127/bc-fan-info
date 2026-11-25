@@ -80,13 +80,14 @@
   <h2>블랙컴뱃 경기 <small class="meta">수집된 대회 기준</small></h2>
   <div class="table-wrap">
   <table class="table">
-    <thead><tr><th>날짜</th><th>대회</th><th>상대</th><th>결과</th></tr></thead>
+    <thead><tr><th>날짜</th><th>대회</th><th>상대</th><th>결과</th><th>영상</th></tr></thead>
     <tbody>
     {% for x in bc %}
       <tr><td class="nowrap">{{ x.date }}</td>
         <td><a href="{{ url_for('event', eid=x.event_id) }}">{{ x.event.name or x.event_id }}</a><div class="meta">{{ x.bout_label }}</div></td>
         <td>{% if x.opp_id %}<a href="{{ url_for('fighter', fid=x.opp_id) }}">{{ x.opp }}</a>{% else %}{{ x.opp }}{% endif %}</td>
-        <td>{% if x.result_text %}<span class="res {{ x.outcome }}">{{ {'W':'승','L':'패','D':'무','NC':'무효'}.get(x.outcome, '-') }}</span> {{ x.result_text }}{% else %}<span class="tag">예정</span>{% endif %}</td></tr>
+        <td>{% if x.result_text %}<span class="res {{ x.outcome }}">{{ {'W':'승','L':'패','D':'무','NC':'무효'}.get(x.outcome, '-') }}</span> {{ x.result_text }}{% else %}<span class="tag">예정</span>{% endif %}</td>
+        <td>{% if x.video_url %}<a class="video-btn" href="{{ x.video_url }}" target="_blank" rel="noopener">▶</a>{% endif %}</td></tr>
     {% endfor %}
     </tbody>
   </table>

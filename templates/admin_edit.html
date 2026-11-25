@@ -11,7 +11,7 @@
     {% set cur = ov.get(field) if field in ov else (raw[field] if raw[field] is not none else '') %}
     <label>{{ label }} {% if field in ov %}<span class="tag">수정됨</span>{% endif %}
       {% if field == 'series' %}
-        <select name="series">{% for s in ['넘버링','블랙컵','라이즈','챔피언스 리그','비긴즈','프로 오디션','기타'] %}<option {{ 'selected' if cur==s }}>{{ s }}</option>{% endfor %}</select>
+        <select name="series">{% for s in series_list %}<option {{ 'selected' if cur==s }}>{{ s }}</option>{% endfor %}</select>
       {% else %}
         <input name="{{ field }}" value="{{ cur }}" {% if field=='date' %}type="date"{% endif %}>
       {% endif %}

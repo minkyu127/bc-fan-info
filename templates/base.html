@@ -6,6 +6,7 @@
 <title>{% block title %}블랙컴뱃 팬 인포{% endblock %}</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23d8a93b'/%3E%3Ctext x='32' y='43' font-size='30' font-weight='900' text-anchor='middle' font-family='Arial' fill='%23111'%3EBC%3C/text%3E%3C/svg%3E">
 </head>
 <body>
 {% set ep = request.endpoint or '' %}
@@ -22,6 +23,9 @@
       <a href="{{ url_for('fighters') }}" class="{{ 'on' if ep in ('fighters','fighter') }}">선수 정보</a>
       <a href="{{ url_for('news') }}" class="{{ 'on' if ep=='news' }}">블컴 뉴스</a>
     </nav>
+    <form class="top-search" action="{{ url_for('fighters') }}" method="get" role="search">
+      <input type="search" name="q" placeholder="선수 검색" aria-label="선수 검색">
+    </form>
     <nav class="sub-nav">
       <a href="{{ url_for('compare') }}" class="{{ 'on' if ep=='compare' }}" title="선수 비교">⚖ 비교</a>
       <a href="{{ url_for('favorites') }}" class="{{ 'on' if ep=='favorites' }}" title="즐겨찾기">★ 즐겨찾기</a>

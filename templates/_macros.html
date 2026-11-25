@@ -33,6 +33,9 @@
     <div class="vs">
       <div class="bout-label">{{ x.bout_label }}</div>
       {% if x.result_text %}<div class="bout-result">{{ x.result_text }}</div>{% else %}<div class="bout-result muted">VS</div>{% endif %}
+      {% if x.video_url %}
+        <a class="video-btn" href="{{ x.video_url }}" target="_blank" rel="noopener" title="블랙컴뱃 공식 유튜브">▶ 경기 영상</a>
+      {% endif %}
       {% if x.scorecard %}
         <div class="scorecard" title="심판 3명의 채점 (승자 점수-패자 점수)">
           {% for s in x.scorecard.split(', ') %}<span><i>심판{{ loop.index }}</i>{{ s }}</span>{% endfor %}

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}관리 · 블랙컴뱃 팬 인포{% endblock %}
+{% block content %}
+<section class="card login-box">
+  <h1>⚙ 관리</h1>
+  <p>이 인터넷 버전은 <b>보기 전용</b>이에요.</p>
+  <p class="meta">데이터는 매일 자동으로 업데이트돼요. 정보 수정이나 대회·영입 직접 추가는 내 컴퓨터에서 <b>시작.bat</b>으로 실행한 사이트의 관리 화면에서 할 수 있어요.</p>
+  {% if last_update %}<p class="meta">마지막 업데이트: {{ last_update }}</p>{% endif %}
+  <a class="btn" href="{{ url_for('home') }}">홈으로</a>
+</section>
+{% endblock %}
