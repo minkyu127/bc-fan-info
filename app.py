@@ -18,6 +18,7 @@ from threading import Timer
 from flask import Flask, abort, jsonify, redirect, render_template, request, session, url_for
 
 import db as dbm
+import narrative
 import scraper
 
 app = Flask(__name__)
@@ -354,6 +355,7 @@ def fight(n, eid):
                     idx = next((i for i, b in enumerate(pair) if b["event_id"] == eid), len(pair) - 1)
                     story = stories[min(max(idx, 0), len(stories) - 1)]
             sides.append({"name": name, "id": fid, "f": f, "bundle": bundle, "story": story,
+                          "rank": bundle["rank"] if bundle else None,
                           "won": bool(x["winner"]) and x["winner"] == name})
         # 두 선수의 블랙컴뱃 맞대결 기록
         h2h = []
@@ -367,7 +369,34 @@ def fight(n, eid):
             if r not in h2h:
                 h2h.append(r)
         h2h.sort(key=lambda r: r["event"].get("date") or "")
-    return render_template("fight.html", e=e, x=x, sides=sides, h2h=h2h, video_id=youtube_id(x.get("video_url")))
+
+        # 두 선수 사이의 서사 재료: 영입 경로, 관련 기사, 나무위키 이야기
+        signings = {}
+        for s in sides:
+            if s["id"]:
+                r = db.execute("SELECT * FROM signings WHERE fighter_id=? ORDER BY id LIMIT 1", (s["id"],)).fetchone()
+                if r:
+                    signings[s["id"]] = dict(r)
+
+        def keys(s):
+            ks = [w for w in (s["name"] or "").split() if len(w) >= 2]
+            if s["f"] and s["f"].get("ring_name") and len(s["f"]["ring_name"]) >= 2:
+                ks.append(s["f"]["ring_name"])
+            return ks
+        ka, kb = keys(sides[0]), keys(sides[1])
+        news = [dict(r) for r in db.execute("SELECT title, url, source, published FROM news ORDER BY published DESC")
+                if any(k in r["title"] for k in ka) and any(k in r["title"] for k in kb)][:4]
+        # (글, 이 경기에 대한 글인지)
+        story_texts = [(x.get("story") or "", True)]
+        for s in sides:
+            if s["story"]:
+                story_texts.append((s["story"]["text"], True))
+            if s["id"]:
+                story_texts += [(r["text"], False) for r in db.execute(
+                    "SELECT text FROM fighter_stories WHERE fighter_id=?", (s["id"],))]
+        rivalry = narrative.build(x, e, sides, h2h, signings, news, story_texts, country_name)
+    return render_template("fight.html", e=e, x=x, sides=sides, h2h=h2h, rivalry=rivalry, news=news,
+                           video_id=youtube_id(x.get("video_url")))
 
 
 @app.route("/rankings")
