@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}관리 · 블랙컴뱃 팬 인포{% endblock %}
+{% block content %}
+<h1>⚙ 관리</h1>
+
+<section class="card">
+  <h2>데이터 업데이트</h2>
+  <p>공식 홈페이지와 나무위키에서 최신 정보를 가져와요. 직접 수정한 내용은 그대로 유지돼요.</p>
+  <div class="btn-row">
+    <form method="post" action="{{ url_for('admin_update') }}"><input type="hidden" name="mode" value="quick">
+      <button class="btn" {{ 'disabled' if update_status.running }}>빠른 업데이트 <small>(랭킹·일정·결과·영입, 1분 안팎)</small></button></form>
+    <form method="post" action="{{ url_for('admin_update') }}"><input type="hidden" name="mode" value="full">
+      <button class="btn ghost" {{ 'disabled' if update_status.running }}>전체 업데이트 <small>(+선수별 상세 전적, 5~10분)</small></button></form>
+  </div>
+  <div class="status-box" id="status-box">
+    <div><b>상태:</b> <span id="st-state">{{ '업데이트 중' if update_status.running else '대기' }}</span>
+      {% if last_update %}· 마지막 완료 {{ last_update }}{% endif %}</div>
+    <div class="progress"><i id="st-bar" style="width:0%"></i></div>
+    <pre id="st-log">{{ update_status.log|join('\n') }}</pre>
+  </div>
+  <p class="meta">저장된 데이터: 선수 {{ counts.fighters }}명 · 대회 {{ counts.events }}개 · 경기 {{ counts.event_fights }}개 · 영입 {{ counts.signings }}건 · 직접 수정 {{ counts.overrides }}건</p>
+</section>
+
+<section class="card">
+  <h2>다른 사람 권한</h2>
+  <form method="post" action="{{ url_for('admin_settings') }}" class="stack">
+    <label class="switch"><input type="checkbox" name="allow_public_update" value="1" {{ 'checked' if public_update }} onchange="this.form.submit()">
+      다른 사람도 “최신 정보로 업데이트” 버튼을 누를 수 있게 허용</label>
+    <p class="meta">켜면 사이트 맨 아래에 업데이트 버튼이 보여요 (30분에 한 번만 실행). 정보 수정·추가는 계속 관리자만 할 수 있어요.</p>
+  </form>
+  <form method="post" action="{{ url_for('logout') }}"><button class="btn ghost tiny">로그아웃</button></form>
+</section>
+
+<div class="grid-2">
+<section class="card">
+  <h2>선수 정보 수정</h2>
+  <p class="meta">틀린 정보가 있으면 선수를 골라 고칠 수 있어요.</p>
+  <form class="stack" onsubmit="const o=[...document.querySelectorAll('#plist option')].find(o=>o.value===this.who.value); if(o){location.href=o.dataset.url;} return false;">
+    <input name="who" list="plist" placeholder="선수 이름 입력">
+    <datalist id="plist">{% for f in fighters %}<option value="{{ f.name }}{% if f.ring_name %} ({{ f.ring_name }}){% endif %}" data-url="{{ url_for('admin_fighter', fid=f.id) }}"></option>{% endfor %}</datalist>
+    <button class="btn">수정하러 가기</button>
+  </form>
+  <p class="meta">대회 정보는 각 대회 페이지의 “✏ 수정”을 누르면 돼요.</p>
+</section>
+
+<section class="card">
+  <h2>대회 직접 추가</h2>
+  <p class="meta">아직 나무위키에 없는 새 대회 소식을 넣을 때 써요.</p>
+  <form class="stack" method="post" action="{{ url_for('admin_event_new') }}">
+    <input name="name" placeholder="대회 이름 (예: 블랙컴뱃 18)" required>
+    <input name="date" type="date">
+    <input name="venue" placeholder="장소">
+    <input name="main_event" placeholder="메인 이벤트 (예: 김재웅 vs 강경호)">
+    <select name="series"><option value="">시리즈 자동</option>{% for s in series_list %}<option>{{ s }}</option>{% endfor %}</select>
+    <button class="btn">대회 추가</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>영입 소식 직접 추가</h2>
+  <form class="stack" method="post" action="{{ url_for('admin_signing_new') }}">
+    <input name="name" placeholder="선수 이름" required>
+    <input name="ring_name" placeholder="링네임">
+    <input name="year" placeholder="연도 (예: 2026)">
+    <input name="program" placeholder="영입 경로 (예: 블랙리스트, 블랙 오퍼)">
+    <select name="fighter_id"><option value="">연결할 선수 페이지 (선택)</option>{% for f in fighters %}<option value="{{ f.id }}">{{ f.name }} {{ f.ring_name or '' }}</option>{% endfor %}</select>
+    <textarea name="description" placeholder="설명 (이전 단체, 전적 등)"></textarea>
+    <button class="btn">영입 추가</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>직접 넣은 데이터</h2>
+  <h3>수정한 항목</h3>
+  {% for o in edits %}
+    <form class="edit-line" method="post" action="{{ url_for('admin_override_delete') }}">
+      <span>{{ '선수' if o.entity=='fighter' else '대회' }} <b>{{ o.entity_id }}</b> · {{ o.field }} = {{ o.value }}</span>
+      <input type="hidden" name="entity" value="{{ o.entity }}"><input type="hidden" name="entity_id" value="{{ o.entity_id }}"><input type="hidden" name="field" value="{{ o.field }}">
+      <button class="btn tiny ghost" title="자동 수집 값으로 되돌리기">되돌리기</button>
+    </form>
+  {% else %}<p class="meta">없음</p>{% endfor %}
+  <h3>직접 추가한 대회</h3>
+  {% for e in manual_events %}<div><a href="{{ url_for('event', eid=e.id) }}">{{ e.name }}</a> <span class="meta">{{ e.date }}</span></div>
+  {% else %}<p class="meta">없음</p>{% endfor %}
+  <h3>직접 추가한 영입</h3>
+  {% for s in manual_signings %}
+    <form class="edit-line" method="post" action="{{ url_for('admin_signing_delete', sid=s.id) }}" onsubmit="return confirm('삭제할까요?')">
+      <span>{{ s.year }} · {{ s.name }} {{ s.ring_name }}</span><button class="btn tiny ghost">삭제</button></form>
+  {% else %}<p class="meta">없음</p>{% endfor %}
+</section>
+</div>
+{% endblock %}

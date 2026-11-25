@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% from "_macros.html" import flag, photo, fight_row %}
+{% block content %}
+
+{% if empty %}
+<section class="empty-box">
+  <h1>아직 데이터가 없어요</h1>
+  {% if update_status.running %}
+    <p>지금 데이터를 모으는 중이에요. 처음에는 5~10분 정도 걸려요. 화면 위쪽 진행 상황을 봐주세요.</p>
+  {% else %}
+    <p>버튼을 누르면 공식 홈페이지와 나무위키에서 정보를 가져와요.</p>
+    <form method="post" action="{{ url_for('admin_update') }}"><input type="hidden" name="mode" value="full">
+      <button class="btn big">데이터 가져오기</button></form>
+  {% endif %}
+</section>
+{% else %}
+
+<div class="grid-2">
+  <section class="card hero">
+    <div class="eyebrow">다음 대회</div>
+    {% if next_event %}
+      <h1><a href="{{ url_for('event', eid=next_event.id) }}">{{ next_event.name }}</a></h1>
+      <p class="meta">{{ fmt_date(next_event.date) }} · {{ next_event.venue or '장소 미정' }}</p>
+      {% set d = ddays(next_event.date) %}
+      {% if d is not none %}
+        <div class="countdown" data-date="{{ next_event.date }}">
+          {% if d == 0 %}오늘!{% else %}D-{{ d }}{% endif %}
+        </div>
+      {% endif %}
+      {% if next_event.main_event %}<p><b>메인 이벤트</b> {{ next_event.main_event }}</p>{% endif %}
+      {% if next_fights %}<a class="btn" href="{{ url_for('event', eid=next_event.id) }}">대진표 {{ next_fights|length }}경기 보기 →</a>{% endif %}
+    {% else %}
+      <h1>예정된 대회가 없어요</h1>
+      <p class="meta">새 대회가 발표되면 업데이트 후 여기에 나와요. 관리 화면에서 직접 추가할 수도 있어요.</p>
+    {% endif %}
+    {% if upcoming %}
+      <div class="mini-list">
+        <div class="eyebrow">그 다음</div>
+        {% for e in upcoming %}
+          <a href="{{ url_for('event', eid=e.id) }}">{{ fmt_date(e.date) }} · {{ e.name }}</a>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <div class="eyebrow">현재 챔피언</div>
+    <div class="champs">
+      {% for w, f in champs if f %}
+        <a class="champ" href="{{ url_for('fighter', fid=f.id) }}">
+          {{ photo(f, 'sm') }}
+          <div><div class="w">{{ w }}</div><b>{{ f.name }}</b> <small>{{ f.ring_name }}</small></div>
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+{% if recent %}
+<section class="card">
+  <div class="head-row">
+    <div><div class="eyebrow">최근 경기 결과</div>
+      <h2><a href="{{ url_for('event', eid=recent[0].id) }}">{{ recent[0].name }}</a> <small class="meta">{{ fmt_date(recent[0].date) }}</small></h2></div>
+    <a href="{{ url_for('event', eid=recent[0].id) }}">전체 보기 →</a>
+  </div>
+  {% set fs = recent[1]|reverse|list %}
+  {% for x in fs[:5] %}{{ fight_row(x, fighters) }}{% endfor %}
+</section>
+{% endif %}
+
+{% if latest_news %}
+<section class="card home-news">
+  <div class="head-row"><div class="eyebrow">블컴 뉴스</div><a href="{{ url_for('news') }}">전체 보기 →</a></div>
+  {% for n in latest_news %}
+    <a class="news-item" href="{{ n.url }}" target="_blank" rel="noopener">
+      <span class="ncat c{{ news_cats.index(n.category) + 1 if n.category in news_cats else 6 }}">{{ n.category }}</span>
+      <span class="grow"><b>{{ n.title }}</b><span class="meta"> · {{ n.source }} · {{ fmt_when(n.published) }}</span></span>
+    </a>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="card">
+  <div class="head-row"><div class="eyebrow">최근 영입</div><a href="{{ url_for('signings') }}">전체 보기 →</a></div>
+  <div class="sign-grid">
+  {% for s in signings %}
+    <div class="sign">
+      <div class="meta">{{ s.year }} · {{ s.program }}</div>
+      <b>{% if s.fighter_id %}<a href="{{ url_for('fighter', fid=s.fighter_id) }}">{{ s.name }}</a>{% else %}{{ s.name }}{% endif %}</b>
+      {% if s.ring_name %}<small>【{{ s.ring_name }}】</small>{% endif %}
+      <p>{{ s.description[:70] }}{% if s.description|length > 70 %}…{% endif %}</p>
+    </div>
+  {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

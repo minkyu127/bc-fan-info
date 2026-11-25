@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "_macros.html" import flag, photo %}
+{% block title %}선수 영입 · 블랙컴뱃 팬 인포{% endblock %}
+{% block content %}
+<h1>선수 영입</h1>
+<div class="chips">
+  <a href="{{ url_for('signings') }}" class="chip {{ 'on' if not program }}">전체</a>
+  {% for p in programs %}<a href="{{ url_for('signings', p=p) }}" class="chip {{ 'on' if program==p }}">{{ p }}</a>{% endfor %}
+</div>
+<p class="meta"><b>블랙리스트</b>: 블랙컴뱃이 영입 대상으로 지목한 국내 강자들 · <b>블랙 테이블</b>: 해외 챔피언급 선수 영입 프로그램</p>
+
+{% for prog, groups in sections.items() %}
+  <h2 class="section-title">{{ prog }}</h2>
+  {% for g, items in groups.items() %}
+  <section class="card">
+    <h2>{{ g }}{{ '년' if g|length == 4 and g.isdigit() }} <small class="meta">{{ items|length }}명</small></h2>
+    <div class="sign-grid">
+    {% for s in items %}
+      {% set f = fighters.get(s.fighter_id) if s.fighter_id else None %}
+      <div class="sign">
+        {% if f %}<a href="{{ url_for('fighter', fid=f.id) }}">{{ photo(f, 'sm') }}</a>{% endif %}
+        <div>
+          <div class="meta">{{ s.program }}{% if f %} · {{ f.weight_class }}{% endif %}</div>
+          <b>{% if f %}{{ flag(f.country) }} <a href="{{ url_for('fighter', fid=f.id) }}">{{ s.name }}</a>{% else %}{{ s.name }}{% endif %}</b>
+          {% if s.ring_name %}<small>【{{ s.ring_name }}】</small>{% endif %}
+          <p>{{ s.description }}</p>
+        </div>
+      </div>
+    {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+{% else %}
+<p class="muted">영입 정보가 없어요.</p>
+{% endfor %}
+{% endblock %}

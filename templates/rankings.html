@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% from "_macros.html" import flag, photo, fav %}
+{% block title %}랭킹 · 블랙컴뱃 팬 인포{% endblock %}
+{% block content %}
+<h1>체급별 랭킹</h1>
+<div class="chips">
+  {% for w in groups %}
+    <a href="{{ url_for('rankings', w=w) }}" class="chip {{ 'on' if w==current }}">{{ w }}</a>
+  {% endfor %}
+</div>
+
+{% set rows = groups.get(current, []) %}
+{% if rows %}
+<section class="card">
+  {% set champ = rows[0] if rows[0][0] == 0 else None %}
+  {% if champ %}
+    {% set f = champ[2] %}
+    <a class="champ-big" href="{{ url_for('fighter', fid=f.id) }}">
+      {{ photo(f, 'lg') }}
+      <div>
+        <div class="eyebrow">{{ current }} 챔피언</div>
+        <h2>{{ flag(f.country) }} {{ f.name }} <small>“{{ f.ring_name }}”</small></h2>
+        <div class="meta">{{ f.wins or 0 }}승 {{ f.losses or 0 }}패 {{ f.draws or 0 }}무{% if f.team %} · {{ f.team }}{% endif %}</div>
+      </div>
+    </a>
+  {% else %}
+    <p class="muted">챔피언: 공석</p>
+  {% endif %}
+
+  <table class="table rank-table">
+    <thead><tr><th>순위</th><th>변동</th><th>선수</th><th>전적 (승/패/무)</th><th class="hide-sm">비고</th><th></th></tr></thead>
+    <tbody>
+    {% for rank, change, f in rows if rank != 0 %}
+      <tr>
+        <td class="rank">{{ rank }}</td>
+        <td class="change {{ 'up' if '▲' in (change or '') }} {{ 'down' if '▼' in (change or '') }} {{ 'new' if 'New' in (change or '') }}">{{ change or '-' }}</td>
+        <td><a class="who" href="{{ url_for('fighter', fid=f.id) }}">{{ photo(f, 'xs') }}
+            <span>{{ flag(f.country) }} <b>{{ f.name }}</b> <small>{{ f.ring_name }}</small></span></a></td>
+        <td>{{ f.wins or 0 }} / {{ f.losses or 0 }} / {{ f.draws or 0 }}</td>
+        <td class="hide-sm meta">{{ f.note or '' }}</td>
+        <td>{{ fav(f.id) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="meta">변동: 지난 랭킹 대비 순위 변화 (공식 홈페이지 기준)</p>
+</section>
+{% else %}
+<p class="muted">랭킹 데이터가 없어요. 관리 화면에서 업데이트해 주세요.</p>
+{% endif %}
+{% endblock %}

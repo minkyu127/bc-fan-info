@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% from "_macros.html" import flag, photo %}
+{% block title %}선수 비교 · 블랙컴뱃 팬 인포{% endblock %}
+{% block content %}
+<h1>선수 비교</h1>
+<form class="card filters" method="get">
+  <datalist id="people">
+    {% for f in everyone %}<option value="{{ f.name }}{% if f.ring_name %} ({{ f.ring_name }}){% endif %}" data-id="{{ f.id }}"></option>{% endfor %}
+  </datalist>
+  {% for key, cur in [('a', a), ('b', b)] %}
+    <input list="people" class="pick" data-target="{{ key }}" placeholder="선수 이름 입력 ({{ '왼쪽' if key=='a' else '오른쪽' }})"
+           value="{% if cur %}{{ cur.f.name }}{% if cur.f.ring_name %} ({{ cur.f.ring_name }}){% endif %}{% endif %}">
+    <input type="hidden" name="{{ key }}" value="{{ a_id if key=='a' else b_id }}">
+    {% if key == 'a' %}<span class="vs-big">VS</span>{% endif %}
+  {% endfor %}
+  <button class="btn">비교하기</button>
+</form>
+
+{% macro val(x, field) %}{{ x.f[field] if x.f[field] not in (none, '') else '-' }}{% endmacro %}
+{% if a and b %}
+{% set rows = [
+  ('체급', val(a,'weight_class'), val(b,'weight_class'), none),
+  ('랭킹', rank_label(a.rank[1]) if a.rank else '-', rank_label(b.rank[1]) if b.rank else '-', 'low'),
+  ('나이', val(a,'age'), val(b,'age'), none),
+  ('키', val(a,'height'), val(b,'height'), 'high'),
+  ('국적', country_name(a.f.country) if a.f.country else '-', country_name(b.f.country) if b.f.country else '-', none),
+  ('소속팀', val(a,'team'), val(b,'team'), none),
+  ('승', a.stats.W, b.stats.W, 'high'),
+  ('패', a.stats.L, b.stats.L, 'low'),
+  ('무', a.stats.D, b.stats.D, none),
+  ('KO/TKO 승', a.stats.win_by['KO/TKO'], b.stats.win_by['KO/TKO'], 'high'),
+  ('서브미션 승', a.stats.win_by['서브미션'], b.stats.win_by['서브미션'], 'high'),
+  ('판정 승', a.stats.win_by['판정'], b.stats.win_by['판정'], 'high'),
+  ('최근 흐름', a.streak or '-', b.streak or '-', none),
+  ('블랙컴뱃 전적', val(a,'bc_record_text'), val(b,'bc_record_text'), none),
+] %}
+<section class="card compare">
+  <div class="cmp-head">
+    <a href="{{ url_for('fighter', fid=a.f.id) }}">{{ photo(a.f, 'lg') }}<h2>{{ flag(a.f.country) }} {{ a.f.name }}</h2><div class="ring">{{ a.f.ring_name }}</div></a>
+    <div class="vs-big">VS</div>
+    <a href="{{ url_for('fighter', fid=b.f.id) }}">{{ photo(b.f, 'lg') }}<h2>{{ flag(b.f.country) }} {{ b.f.name }}</h2><div class="ring">{{ b.f.ring_name }}</div></a>
+  </div>
+  {% set total_a = a.stats.W + a.stats.L + a.stats.D %}
+  {% set total_b = b.stats.W + b.stats.L + b.stats.D %}
+  <div class="cmp-bar">
+    <div><b>승률 {{ ((a.stats.W / total_a * 100)|round|int) if total_a else 0 }}%</b></div>
+    <div><b>승률 {{ ((b.stats.W / total_b * 100)|round|int) if total_b else 0 }}%</b></div>
+  </div>
+  <table class="table cmp-table">
+    {% for label, va, vb, better in rows %}
+      {% set na = va|string|replace('cm','')|replace('#','') %}{% set nb = vb|string|replace('cm','')|replace('#','') %}
+      {% set both = na|replace('.','')|int(-1) >= 0 and nb|replace('.','')|int(-1) >= 0 and na != '-' and nb != '-' %}
+      {% set fa, fb = (na|float, nb|float) if both else (0, 0) %}
+      <tr>
+        <td class="{{ 'best' if both and better and ((better=='high' and fa>fb) or (better=='low' and fa<fb)) }}">{{ va }}</td>
+        <th>{{ label }}</th>
+        <td class="{{ 'best' if both and better and ((better=='high' and fb>fa) or (better=='low' and fb<fa)) }}">{{ vb }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+  <p class="meta">초록색 = 더 좋은 쪽. 나무위키 전적이 없는 선수는 공식 홈페이지 승/패 기준이에요.</p>
+</section>
+{% elif a or b %}
+  <p class="muted">비교할 선수를 한 명 더 골라주세요.</p>
+{% else %}
+  <p class="muted">위에서 두 선수의 이름을 입력하세요. 선수 상세 페이지의 “다른 선수와 비교” 버튼으로도 올 수 있어요.</p>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('.pick').forEach(inp => {
+  const hidden = inp.nextElementSibling;
+  inp.addEventListener('input', () => {
+    const opt = [...document.querySelectorAll('#people option')].find(o => o.value === inp.value);
+    hidden.value = opt ? opt.dataset.id : '';
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% from "_macros.html" import flag, photo, fav %}
+{% block title %}{{ f.name }} · 블랙컴뱃 팬 인포{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('fighters') }}">← 선수 목록</a>
+<section class="card profile">
+  {{ photo(f, 'xl') }}
+  <div class="grow">
+    <div class="eyebrow">{{ f.weight_class or '' }}{% if rank %} · {{ rank_label(rank[1]) }}{% endif %}</div>
+    <h1>{{ flag(f.country) }} {{ f.name }} {{ fav(f.id) }}</h1>
+    {% if f.ring_name %}<div class="ringname">“{{ f.ring_name }}”</div>{% endif %}
+    <div class="record-big">
+      <div><b>{{ stats.W }}</b><span>승</span></div>
+      <div><b>{{ stats.L }}</b><span>패</span></div>
+      <div><b>{{ stats.D }}</b><span>무</span></div>
+      {% if stats.NC %}<div><b>{{ stats.NC }}</b><span>무효</span></div>{% endif %}
+    </div>
+    {% if streak %}<span class="tag {{ 'win' if '승' in streak else 'loss' }}">{{ streak }}</span>{% endif %}
+    <dl class="facts">
+      {% if f.age %}<dt>나이</dt><dd>{{ f.age }}세</dd>{% endif %}
+      {% if f.birth %}<dt>생년월일</dt><dd>{{ f.birth }}</dd>{% endif %}
+      {% if f.country %}<dt>국적</dt><dd>{{ country_name(f.country) }}</dd>{% endif %}
+      {% if f.height %}<dt>키</dt><dd>{{ f.height }}</dd>{% endif %}
+      {% if f.team %}<dt>소속팀</dt><dd>{{ f.team }}</dd>{% endif %}
+      {% if f.record_text %}<dt>통산 전적</dt><dd>{{ f.record_text }}</dd>{% endif %}
+      {% if f.bc_record_text %}<dt>블랙컴뱃 전적</dt><dd>{{ f.bc_record_text }}</dd>{% endif %}
+      {% if f.note %}<dt>비고</dt><dd>{{ f.note }}</dd>{% endif %}
+      {% if signing %}<dt>영입</dt><dd>{{ signing.year }} {{ signing.program }}</dd>{% endif %}
+    </dl>
+    <div class="row-links">
+      {% if f.official_url %}<a href="{{ f.official_url }}" target="_blank" rel="noopener">공식 프로필 ↗</a>{% endif %}
+      {% if f.namu_title %}<a href="https://namu.wiki/w/{{ f.namu_title|urlencode }}" target="_blank" rel="noopener">나무위키 ↗</a>{% endif %}
+      <a href="{{ url_for('compare', a=f.id) }}">⚖ 다른 선수와 비교</a>
+      {% if is_admin %}<a href="{{ url_for('admin_fighter', fid=f.id) }}">✏ 정보 수정</a>{% endif %}
+    </div>
+    {% if f._edited %}<p class="meta">직접 수정한 항목: {{ f._edited|join(', ') }}</p>{% endif %}
+  </div>
+</section>
+
+{% if stats.W or stats.L %}
+<section class="card">
+  <h2>승리·패배 방식</h2>
+  <div class="grid-2">
+    {% for title, by, total, cls in [('승리', stats.win_by, stats.W, 'win'), ('패배', stats.loss_by, stats.L, 'loss')] %}
+    <div>
+      <h3>{{ title }} {{ total }}회</h3>
+      {% set sum = by.values()|sum %}
+      {% for m, n in by.items() if n %}
+        <div class="bar-row"><span>{{ m }}</span>
+          <div class="bar"><i class="{{ cls }}" style="width: {{ (n / sum * 100)|round(1) if sum else 0 }}%"></i></div>
+          <span>{{ n }}</span></div>
+      {% else %}<p class="meta">{{ '방식 정보 없음' if total else '없음' }}</p>{% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+  {% if not fights %}<p class="meta">방식별 통계는 나무위키 통산 전적이 있는 선수만 나와요.</p>{% endif %}
+</section>
+{% endif %}
+
+{% if fights %}
+<section class="card">
+  <h2>통산 전적 <small class="meta">{{ fights|length }}경기 · 최신순</small></h2>
+  <div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>#</th><th>날짜</th><th>대회</th><th>상대</th><th>결과</th><th class="hide-sm">비고</th></tr></thead>
+    <tbody>
+    {% for x in fights|reverse %}
+      <tr><td>{{ x.seq }}</td><td class="nowrap">{{ x.date }}</td><td>{{ x.event }}</td><td>{{ x.opponent }}</td>
+        <td><span class="res {{ x.outcome }}">{{ {'W':'승','L':'패','D':'무','NC':'무효'}.get(x.outcome, '-') }}</span> {{ x.result_text }}</td>
+        <td class="hide-sm meta">{{ x.note }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+
+{% if bc %}
+<section class="card">
+  <h2>블랙컴뱃 경기 <small class="meta">수집된 대회 기준</small></h2>
+  <div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>날짜</th><th>대회</th><th>상대</th><th>결과</th></tr></thead>
+    <tbody>
+    {% for x in bc %}
+      <tr><td class="nowrap">{{ x.date }}</td>
+        <td><a href="{{ url_for('event', eid=x.event_id) }}">{{ x.event.name or x.event_id }}</a><div class="meta">{{ x.bout_label }}</div></td>
+        <td>{% if x.opp_id %}<a href="{{ url_for('fighter', fid=x.opp_id) }}">{{ x.opp }}</a>{% else %}{{ x.opp }}{% endif %}</td>
+        <td>{% if x.result_text %}<span class="res {{ x.outcome }}">{{ {'W':'승','L':'패','D':'무','NC':'무효'}.get(x.outcome, '-') }}</span> {{ x.result_text }}{% else %}<span class="tag">예정</span>{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}블컴 뉴스 · 블랙컴뱃 팬 인포{% endblock %}
+{% block content %}
+<h1>블컴 뉴스</h1>
+<div class="chips">
+  <a href="{{ url_for('news', k=kind) }}" class="chip {{ 'on' if not cat }}">전체</a>
+  {% for c in cats %}
+    <a href="{{ url_for('news', c=c, k=kind) }}" class="chip {{ 'on' if cat==c }} cat-{{ loop.index }}">{{ c }} <small>{{ counts.get(c, 0) }}</small></a>
+  {% endfor %}
+</div>
+<div class="chips">
+  <a href="{{ url_for('news', c=cat) }}" class="chip small {{ 'on' if not kind }}">기사+영상</a>
+  <a href="{{ url_for('news', c=cat, k='article') }}" class="chip small {{ 'on' if kind=='article' }}">📰 기사</a>
+  <a href="{{ url_for('news', c=cat, k='video') }}" class="chip small {{ 'on' if kind=='video' }}">▶ 공식 영상</a>
+</div>
+<p class="meta">언론 기사(구글 뉴스 검색)와 블랙컴뱃 공식 유튜브 영상을 모아 제목으로 자동 분류했어요. 누르면 원문으로 이동해요.</p>
+
+{% set videos = items|selectattr('kind', 'equalto', 'video')|list %}
+{% if videos and kind != 'article' %}
+<section class="card">
+  <h2>▶ 공식 영상</h2>
+  <div class="video-grid">
+  {% for v in videos[:8] %}
+    <a class="video" href="{{ v.url }}" target="_blank" rel="noopener">
+      <div class="thumb">{% if v.thumb %}<img src="{{ v.thumb }}" alt="" loading="lazy">{% endif %}<span class="play">▶</span></div>
+      <div class="meta"><span class="ncat">{{ v.category }}</span> {{ fmt_when(v.published) }}</div>
+      <b>{{ v.title }}</b>
+    </a>
+  {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% set articles = items|selectattr('kind', 'equalto', 'article')|list %}
+{% if kind != 'video' %}
+<section class="card">
+  <h2>📰 기사</h2>
+  <div class="news-list">
+  {% for n in articles %}
+    <a class="news-item" href="{{ n.url }}" target="_blank" rel="noopener">
+      <span class="ncat c{{ cats.index(n.category) + 1 if n.category in cats else 6 }}">{{ n.category }}</span>
+      <span class="grow"><b>{{ n.title }}</b><span class="meta"> · {{ n.source }} · {{ fmt_when(n.published) }}</span></span>
+      <span class="ext">↗</span>
+    </a>
+  {% else %}
+    <p class="muted">해당하는 기사가 없어요.</p>
+  {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

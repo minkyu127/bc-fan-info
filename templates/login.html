@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}관리 로그인 · 블랙컴뱃 팬 인포{% endblock %}
+{% block content %}
+<section class="card login-box">
+  <h1>관리 로그인</h1>
+  <p class="meta">관리자만 데이터를 수정할 수 있어요.</p>
+  <form method="post" class="stack">
+    <input type="password" name="password" placeholder="관리 비밀번호" autofocus required autocomplete="current-password">
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    <button class="btn">로그인</button>
+  </form>
+</section>
+{% endblock %}

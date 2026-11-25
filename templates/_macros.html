@@ -1,0 +1,52 @@
+{% macro flag(code) -%}
+  {%- if code %}<span class="fi fi-{{ code|lower }}" title="{{ country_name(code) }}"></span>{% endif -%}
+{%- endmacro %}
+
+{% macro fav(id) -%}
+  <button class="fav" data-id="{{ id }}" title="즐겨찾기" type="button">☆</button>
+{%- endmacro %}
+
+{% macro photo(f, cls='') -%}
+  {%- if f.photo_url %}<img class="photo {{ cls }}" src="{{ f.photo_url }}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'photo ph {{ cls }}',textContent:'{{ (f.name or '?')[:1] }}'}))">
+  {%- else %}<div class="photo ph {{ cls }}">{{ (f.name or '?')[:1] }}</div>{% endif -%}
+{%- endmacro %}
+
+{% macro fighter_name(f, id) -%}
+  {%- if f %}<a href="{{ url_for('fighter', fid=id) }}">{{ f.name }}</a>{% endif -%}
+{%- endmacro %}
+
+{% macro fight_row(x, fighters) %}
+  {% set fa = fighters.get(x.fighter_a_id) if x.fighter_a_id else None %}
+  {% set fb = fighters.get(x.fighter_b_id) if x.fighter_b_id else None %}
+  {% set a_won = x.winner and x.winner == x.fighter_a %}
+  {% set b_won = x.winner and x.winner == x.fighter_b %}
+  <div class="bout">
+    <div class="side {{ 'won' if a_won }} {{ 'lost' if b_won }}">
+      {% if fa %}<a href="{{ url_for('fighter', fid=x.fighter_a_id) }}">{{ photo(fa, 'bout-pic') }}</a>{% else %}{{ photo({'name': x.fighter_a}, 'bout-pic') }}{% endif %}
+      <div class="who-txt">
+        {% if fa %}<div>{{ flag(fa.country) }} <a href="{{ url_for('fighter', fid=x.fighter_a_id) }}">{{ x.fighter_a }}</a></div>
+          {% if fa.ring_name %}<small>{{ fa.ring_name }}</small>{% endif %}
+        {% else %}<div>{{ x.fighter_a }}</div>{% endif %}
+        {% if a_won %}<span class="tag win">승</span>{% endif %}
+      </div>
+    </div>
+    <div class="vs">
+      <div class="bout-label">{{ x.bout_label }}</div>
+      {% if x.result_text %}<div class="bout-result">{{ x.result_text }}</div>{% else %}<div class="bout-result muted">VS</div>{% endif %}
+      {% if x.scorecard %}
+        <div class="scorecard" title="심판 3명의 채점 (승자 점수-패자 점수)">
+          {% for s in x.scorecard.split(', ') %}<span><i>심판{{ loop.index }}</i>{{ s }}</span>{% endfor %}
+        </div>
+      {% endif %}
+    </div>
+    <div class="side right {{ 'won' if b_won }} {{ 'lost' if a_won }}">
+      <div class="who-txt">
+        {% if fb %}<div><a href="{{ url_for('fighter', fid=x.fighter_b_id) }}">{{ x.fighter_b }}</a> {{ flag(fb.country) }}</div>
+          {% if fb.ring_name %}<small>{{ fb.ring_name }}</small>{% endif %}
+        {% else %}<div>{{ x.fighter_b }}</div>{% endif %}
+        {% if b_won %}<span class="tag win">승</span>{% endif %}
+      </div>
+      {% if fb %}<a href="{{ url_for('fighter', fid=x.fighter_b_id) }}">{{ photo(fb, 'bout-pic') }}</a>{% else %}{{ photo({'name': x.fighter_b}, 'bout-pic') }}{% endif %}
+    </div>
+  </div>
+{% endmacro %}

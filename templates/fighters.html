@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "_macros.html" import flag, photo, fav %}
+{% block title %}선수 · 블랙컴뱃 팬 인포{% endblock %}
+{% block content %}
+<h1>선수 <small class="meta">{{ fighters|length }}명</small></h1>
+<div class="filters card">
+  <input id="q" type="search" placeholder="이름, 링네임, 소속팀으로 검색" autofocus>
+  <select id="fw"><option value="">모든 체급</option>{% for w in weights %}<option>{{ w }}</option>{% endfor %}</select>
+  <select id="fc"><option value="">모든 국가</option>{% for c in countries %}<option value="{{ c }}">{{ country_name(c) }}</option>{% endfor %}</select>
+  <label class="check"><input id="ff" type="checkbox"> 즐겨찾기만</label>
+</div>
+<p id="nores" class="muted" hidden>검색 결과가 없어요.</p>
+<div class="fighter-grid" id="grid">
+{% for f in fighters %}
+  <div class="fcard" data-id="{{ f.id }}" data-w="{{ f.weight_class }}" data-c="{{ f.country }}"
+       data-q="{{ ((f.name or '') ~ ' ' ~ (f.ring_name or '') ~ ' ' ~ (f.name_en or '') ~ ' ' ~ (f.team or ''))|lower }}">
+    {{ fav(f.id) }}
+    <a href="{{ url_for('fighter', fid=f.id) }}">
+      {{ photo(f) }}
+      <div class="fc-body">
+        <div class="meta">{{ f.weight_class }}{% if f.rank is not none %} · {{ rank_label(f.rank) }}{% endif %}</div>
+        <b>{{ flag(f.country) }} {{ f.name }}</b>
+        <div class="ring">{{ f.ring_name }}</div>
+        <div class="meta">{{ f.wins or 0 }}승 {{ f.losses or 0 }}패 {{ f.draws or 0 }}무</div>
+      </div>
+    </a>
+  </div>
+{% endfor %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const q = document.getElementById('q'), fw = document.getElementById('fw'),
+        fc = document.getElementById('fc'), ff = document.getElementById('ff');
+  const cards = [...document.querySelectorAll('.fcard')];
+  const params = new URLSearchParams(location.search);
+  if (params.get('q')) q.value = params.get('q');
+  function run() {
+    const t = q.value.trim().toLowerCase(), favs = BC.favs();
+    let shown = 0;
+    cards.forEach(c => {
+      const ok = (!t || c.dataset.q.includes(t)) && (!fw.value || c.dataset.w === fw.value)
+        && (!fc.value || c.dataset.c === fc.value) && (!ff.checked || favs.includes(c.dataset.id));
+      c.hidden = !ok; if (ok) shown++;
+    });
+    document.getElementById('nores').hidden = shown > 0;
+  }
+  [q, fw, fc, ff].forEach(el => el.addEventListener('input', run));
+  document.addEventListener('favchange', run);
+  run();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "_macros.html" import fight_row %}
+{% block title %}전적 · 블랙컴뱃 팬 인포{% endblock %}
+{% block content %}
+<h1>전적 <small class="meta">블랙컴뱃 대회 경기 결과</small></h1>
+<div class="filters card">
+  <input id="q" type="search" placeholder="선수 이름으로 경기 찾기 (예: 김재웅)" value="{{ q }}">
+  <select id="fy"><option value="">모든 연도</option>{% for y in years %}<option {{ 'selected' if y==year }}>{{ y }}</option>{% endfor %}</select>
+  <select id="fs"><option value="">모든 대회 종류</option>{% for s in series_list %}<option {{ 'selected' if s==series }}>{{ s }}</option>{% endfor %}</select>
+</div>
+<p class="meta">선수 한 명의 전체 통산 전적(다른 단체 경기 포함)은 <a href="{{ url_for('fighters') }}">선수 정보</a>에서 볼 수 있어요.</p>
+<p id="nores" class="muted" hidden>조건에 맞는 경기가 없어요.</p>
+
+{% for e, fights in groups %}
+<section class="card result-group" data-y="{{ (e.date or '')[:4] }}" data-s="{{ e.series }}">
+  <div class="head-row">
+    <h2><a href="{{ url_for('event', eid=e.id) }}">{{ e.name }}</a> <small class="meta">{{ fmt_date(e.date) }}</small></h2>
+    <span class="chip small">{{ e.series }}</span>
+  </div>
+  {% for x in fights %}
+    <div class="result-item" data-q="{{ (x.fighter_a ~ ' ' ~ x.fighter_b ~ ' ' ~ ((fighters.get(x.fighter_a_id) or {}).ring_name or '') ~ ' ' ~ ((fighters.get(x.fighter_b_id) or {}).ring_name or ''))|lower }}">
+      {{ fight_row(x, fighters) }}
+    </div>
+  {% endfor %}
+</section>
+{% else %}
+<p class="muted">아직 경기 결과가 없어요. 관리 화면에서 업데이트해 주세요.</p>
+{% endfor %}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const q = document.getElementById('q'), fy = document.getElementById('fy'), fs = document.getElementById('fs');
+  const groups = [...document.querySelectorAll('.result-group')];
+  function run() {
+    const t = q.value.trim().toLowerCase();
+    let shown = 0;
+    groups.forEach(g => {
+      const okG = (!fy.value || g.dataset.y === fy.value) && (!fs.value || g.dataset.s === fs.value);
+      let n = 0;
+      g.querySelectorAll('.result-item').forEach(it => {
+        const ok = okG && (!t || it.dataset.q.includes(t));
+        it.hidden = !ok; if (ok) n++;
+      });
+      g.hidden = n === 0; shown += n;
+    });
+    document.getElementById('nores').hidden = shown > 0;
+  }
+  [q, fy, fs].forEach(el => el.addEventListener('input', run));
+  run();
+})();
+</script>
+{% endblock %}

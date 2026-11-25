@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}{{ kind }} 수정 · 블랙컴뱃 팬 인포{% endblock %}
+{% block content %}
+<a class="back" href="{{ back }}">← 돌아가기</a>
+<h1>{{ kind }} 정보 수정 <small class="meta">{{ raw.name }}</small></h1>
+<form class="card" method="post">
+  <p class="meta">값을 바꾸고 저장하면 다음 자동 업데이트 때도 내가 고친 값이 유지돼요.
+    {% if not manual %}칸을 비우면 자동 수집 값으로 돌아가요.{% endif %}</p>
+  <div class="form-grid">
+  {% for field, label in fields %}
+    {% set cur = ov.get(field) if field in ov else (raw[field] if raw[field] is not none else '') %}
+    <label>{{ label }} {% if field in ov %}<span class="tag">수정됨</span>{% endif %}
+      {% if field == 'series' %}
+        <select name="series">{% for s in ['넘버링','블랙컵','라이즈','챔피언스 리그','비긴즈','프로 오디션','기타'] %}<option {{ 'selected' if cur==s }}>{{ s }}</option>{% endfor %}</select>
+      {% else %}
+        <input name="{{ field }}" value="{{ cur }}" {% if field=='date' %}type="date"{% endif %}>
+      {% endif %}
+      {% if field in ov %}<small class="meta">자동 수집 값: {{ raw[field] if raw[field] is not none else '(없음)' }}</small>{% endif %}
+    </label>
+  {% endfor %}
+  </div>
+
+  {% if event_mode %}
+  <h2>경기 추가 (대진표에 직접 넣기)</h2>
+  <div class="form-grid">
+    <label>경기 이름<input name="new_label" placeholder="예: 메인 이벤트 밴텀급 타이틀전"></label>
+    <label>선수 A<input name="new_a" placeholder="선수 이름"></label>
+    <label>선수 B<input name="new_b" placeholder="선수 이름"></label>
+    <label>결과 (경기 후)<input name="new_result" placeholder="예: 김재웅 2R 3:10 KO승"></label>
+    <label>승자 이름<input name="new_winner" placeholder="예: 김재웅"></label>
+    <label>채점 (판정일 때)<input name="new_score" placeholder="예: 30-27, 29-28, 30-27"></label>
+  </div>
+  {% endif %}
+
+  <div class="btn-row">
+    <button class="btn">저장</button>
+    <a class="btn ghost" href="{{ back }}">취소</a>
+    {% if manual %}<button class="btn danger" name="delete" value="1" onclick="return confirm('이 대회를 삭제할까요?')">대회 삭제</button>{% endif %}
+  </div>
+</form>
+{% endblock %}

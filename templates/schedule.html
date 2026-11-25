@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}경기 일정 · 블랙컴뱃 팬 인포{% endblock %}
+{% block content %}
+<h1>경기 일정</h1>
+<div class="chips">
+  <a href="{{ url_for('schedule') }}" class="chip {{ 'on' if not series }}">전체</a>
+  {% for s in series_list %}
+    <a href="{{ url_for('schedule', series=s) }}" class="chip {{ 'on' if series==s }}">{{ s }}</a>
+  {% endfor %}
+</div>
+
+<section class="card">
+  <h2>예정된 대회</h2>
+  {% if upcoming %}
+    <div class="event-list">
+    {% for e in upcoming %}
+      {% set d = ddays(e.date) %}
+      <a class="event-item upcoming" href="{{ url_for('event', eid=e.id) }}">
+        <div class="dday">{% if d is none %}미정{% elif d == 0 %}오늘{% else %}D-{{ d }}{% endif %}</div>
+        <div class="grow"><b>{{ e.name }}</b>
+          <div class="meta">{{ fmt_date(e.date) }} · {{ e.venue or '장소 미정' }}</div>
+          {% if e.main_event %}<div class="meta">메인 이벤트: {{ e.main_event }}</div>{% endif %}
+        </div>
+        <span class="chip small">{{ e.series }}</span>
+      </a>
+    {% endfor %}
+    </div>
+  {% else %}
+    <p class="muted">발표된 예정 대회가 없어요.</p>
+  {% endif %}
+</section>
+
+{% for y, evs in by_year.items() %}
+<section class="card">
+  <h2>{{ y }}년 지난 대회</h2>
+  <div class="event-list">
+  {% for e in evs %}
+    <a class="event-item" href="{{ url_for('event', eid=e.id) }}">
+      <div class="date">{% if e.date %}{{ e.date[5:7] }}.{{ e.date[8:10] }}{% else %}-{% endif %}</div>
+      <div class="grow"><b>{{ e.name }}</b>
+        <div class="meta">{{ e.venue }}{% if e.main_event %} · 메인: {{ e.main_event }}{% endif %}</div></div>
+      {% if counts.get(e.id) %}<span class="meta">{{ counts[e.id] }}경기</span>{% endif %}
+      <span class="chip small">{{ e.series }}</span>
+    </a>
+  {% endfor %}
+  </div>
+</section>
+{% endfor %}
+{% endblock %}

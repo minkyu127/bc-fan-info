@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}즐겨찾기 · 블랙컴뱃 팬 인포{% endblock %}
+{% block content %}
+<h1>★ 즐겨찾기</h1>
+<p class="meta">선수 카드나 상세 페이지의 ☆ 버튼을 누르면 여기에 모여요. (이 컴퓨터의 브라우저에 저장돼요)</p>
+<div id="fav-empty" class="empty-box" hidden>
+  <p>아직 즐겨찾기한 선수가 없어요.</p>
+  <a class="btn" href="{{ url_for('fighters') }}">선수 보러 가기</a>
+</div>
+<div class="fighter-grid" id="fav-grid"></div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function loadFavs() {
+  const ids = BC.favs();
+  const grid = document.getElementById('fav-grid');
+  document.getElementById('fav-empty').hidden = ids.length > 0;
+  if (!ids.length) { grid.innerHTML = ''; return; }
+  const res = await fetch('/api/fighters?ids=' + ids.map(encodeURIComponent).join(','));
+  const list = await res.json();
+  grid.innerHTML = '';
+  list.forEach(f => {
+    const card = document.createElement('div');
+    card.className = 'fcard';
+    const pic = f.photo_url ? `<img class="photo" src="${BC.esc(f.photo_url)}" alt="" loading="lazy">`
+                            : `<div class="photo ph">${BC.esc((f.name || '?')[0])}</div>`;
+    card.innerHTML = `<button class="fav on" data-id="${BC.esc(f.id)}" type="button">★</button>
+      <a href="${BC.esc(f.url)}">${pic}<div class="fc-body">
+        <div class="meta">${BC.esc(f.weight_class || '')}${f.rank === null ? '' : ' · ' + (f.rank === 0 ? '챔피언' : '#' + f.rank)}</div>
+        <b>${BC.esc(f.name || '')}</b><div class="ring">${BC.esc(f.ring_name || '')}</div>
+        <div class="meta">${BC.esc(f.record)}</div></div></a>`;
+    grid.appendChild(card);
+  });
+  BC.bindFavs(grid);
+}
+document.addEventListener('favchange', loadFavs);
+loadFavs();
+</script>
+{% endblock %}

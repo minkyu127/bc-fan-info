@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}블랙컴뱃 팬 인포{% endblock %}</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+{% set ep = request.endpoint or '' %}
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="logo" href="{{ url_for('home') }}" title="홈">
+      <span class="logo-mark">BC</span><span class="logo-text">FAN<br>INFO</span>
+    </a>
+    <nav class="main-nav">
+      <a href="{{ url_for('schedule') }}" class="{{ 'on' if ep in ('schedule','event') }}">경기 일정</a>
+      <a href="{{ url_for('signings') }}" class="{{ 'on' if ep=='signings' }}">선수 영입</a>
+      <a href="{{ url_for('results') }}" class="{{ 'on' if ep=='results' }}">전적</a>
+      <a href="{{ url_for('rankings') }}" class="{{ 'on' if ep=='rankings' }}">랭킹</a>
+      <a href="{{ url_for('fighters') }}" class="{{ 'on' if ep in ('fighters','fighter') }}">선수 정보</a>
+      <a href="{{ url_for('news') }}" class="{{ 'on' if ep=='news' }}">블컴 뉴스</a>
+    </nav>
+    <nav class="sub-nav">
+      <a href="{{ url_for('compare') }}" class="{{ 'on' if ep=='compare' }}" title="선수 비교">⚖ 비교</a>
+      <a href="{{ url_for('favorites') }}" class="{{ 'on' if ep=='favorites' }}" title="즐겨찾기">★ 즐겨찾기</a>
+      <a href="{{ url_for('admin') }}" class="{{ 'on' if ep.startswith('admin') }}" title="데이터 업데이트·수정">⚙ 관리</a>
+    </nav>
+  </div>
+</header>
+
+{% if update_status.running %}
+<div class="updating" id="updating-bar">
+  ⏳ 데이터 업데이트 중… <span id="upd-step">{{ update_status.step }}</span> <span id="upd-count"></span>
+</div>
+{% endif %}
+
+<main>
+{% if not_found %}
+  <section class="empty-box">
+    <h1>페이지를 찾을 수 없어요</h1>
+    <p>데이터가 바뀌었거나 아직 수집되지 않았을 수 있어요.</p>
+    <a class="btn" href="{{ url_for('home') }}">홈으로</a>
+  </section>
+{% endif %}
+{% block content %}{% endblock %}
+</main>
+
+<footer>
+  <p>비공식 개인용 팬 사이트입니다. 로고와 선수 사진의 권리는 블랙컴뱃에 있어요.</p>
+  <p>데이터 출처: <a href="https://www.blackcombat-official.com" target="_blank" rel="noopener">블랙컴뱃 공식 홈페이지</a>,
+     <a href="https://namu.wiki/w/%EB%B8%94%EB%9E%99%EC%BB%B4%EB%B1%83" target="_blank" rel="noopener">나무위키</a> (CC BY-NC-SA 2.0 KR)
+     {% if last_update %}· 마지막 업데이트 {{ last_update }}{% endif %}</p>
+  {% if public_update and not is_admin and not update_status.running %}
+  <form class="public-update" method="post" action="{{ url_for('public_update') }}">
+    <button title="30분에 한 번만 실행돼요">↻ 최신 정보로 업데이트</button>
+  </form>
+  {% endif %}
+</footer>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

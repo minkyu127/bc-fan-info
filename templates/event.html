@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "_macros.html" import fight_row %}
+{% block title %}{{ e.name }} · 블랙컴뱃 팬 인포{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('schedule') }}">← 경기 일정</a>
+<section class="card hero">
+  <div class="eyebrow">{{ e.series }}{% if not done %} · 예정{% endif %}</div>
+  <h1>{{ e.name }}</h1>
+  <p class="meta">{{ fmt_date(e.date) }} · {{ e.venue or '장소 미정' }}</p>
+  {% set d = ddays(e.date) %}
+  {% if not done and d is not none %}<div class="countdown">{% if d == 0 %}오늘!{% else %}D-{{ d }}{% endif %}</div>{% endif %}
+  {% if e.main_event %}<p><b>메인 이벤트</b> {{ e.main_event }}</p>{% endif %}
+  <div class="row-links">
+    {% if e.namu_title %}<a href="https://namu.wiki/w/{{ e.namu_title|urlencode }}" target="_blank" rel="noopener">나무위키 문서 ↗</a>{% endif %}
+    {% if is_admin %}<a href="{{ url_for('admin_event', eid=e.id) }}">✏ 수정</a>{% endif %}
+  </div>
+</section>
+
+<section class="card">
+  <h2>{{ '경기 결과' if done else '대진표' }} <small class="meta">메인 이벤트부터</small></h2>
+  {% if fights %}
+    {% for x in fights %}{{ fight_row(x, fighters) }}{% endfor %}
+  {% else %}
+    <p class="muted">아직 대진 정보가 없어요. 발표되면 업데이트 후 나와요. </p>
+  {% endif %}
+</section>
+{% endblock %}
