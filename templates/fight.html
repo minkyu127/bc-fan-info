@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% from "_macros.html" import flag, photo %}
+{% block title %}{{ x.fighter_a }} vs {{ x.fighter_b }} · 블랙컴뱃 팬 인포{% endblock %}
+{% block content %}
+<a class="back" href="{{ url_for('event', eid=e.id) }}">← {{ e.name }}</a>
+
+<section class="card fight-hero">
+  <div class="eyebrow">{{ e.name }} · {{ fmt_date(e.date) }}</div>
+  <div class="meta center">{{ x.bout_label }}</div>
+  <div class="fh-grid">
+    {% for s in sides %}
+      <div class="fh-side {{ 'won' if s.won }} {{ 'lost' if x.winner and not s.won }}">
+        {% if s.f %}<a href="{{ url_for('fighter', fid=s.id) }}">{{ photo(s.f, 'lg') }}</a>
+        {% else %}{{ photo({'name': s.name}, 'lg') }}{% endif %}
+        <h2>{% if s.f %}{{ flag(s.f.country) }} <a href="{{ url_for('fighter', fid=s.id) }}">{{ s.name }}</a>{% else %}{{ s.name }}{% endif %}</h2>
+        {% if s.f and s.f.ring_name %}<div class="ring">“{{ s.f.ring_name }}”</div>{% endif %}
+        {% if s.f %}<div class="meta">{{ s.f.wins or 0 }}승 {{ s.f.losses or 0 }}패 {{ s.f.draws or 0 }}무{% if s.f.team %} · {{ s.f.team }}{% endif %}</div>{% endif %}
+        {% if s.won %}<span class="tag win">승리</span>{% endif %}
+      </div>
+      {% if loop.first %}<div class="vs-big">VS</div>{% endif %}
+    {% endfor %}
+  </div>
+  <div class="center">
+    {% if x.result_text %}<div class="bout-result big">{{ x.result_text }}</div>{% else %}<div class="meta">아직 결과가 없어요 (예정 경기)</div>{% endif %}
+    {% if x.scorecard %}
+      <div class="scorecard">{% for sc in x.scorecard.split(', ') %}<span><i>심판{{ loop.index }}</i>{{ sc }}</span>{% endfor %}</div>
+    {% endif %}
+  </div>
+</section>
+
+{% if video_id %}
+<section class="card">
+  <h2>▶ 공식 경기 영상</h2>
+  <div class="video-embed">
+    <iframe src="https://www.youtube-nocookie.com/embed/{{ video_id }}" title="경기 영상" loading="lazy"
+            allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe>
+  </div>
+  <p class="meta">출처: <a href="{{ x.video_url }}" target="_blank" rel="noopener">블랙컴뱃 공식 유튜브 ↗</a></p>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>📖 이 경기 이야기</h2>
+  {% set has_story = x.story or sides[0].story or sides[1].story %}
+  {% if x.story %}
+    <div class="story">
+      <p>{{ x.story }}</p>
+      {% if e.namu_title %}<a class="src" href="https://namu.wiki/w/{{ e.namu_title|urlencode }}#s-{{ x.story_ref }}" target="_blank" rel="noopener">나무위키 대회 문서에서 전체 보기 ↗</a>{% endif %}
+    </div>
+  {% endif %}
+  {% for s in sides if s.story %}
+    <div class="story">
+      <div class="story-who">{{ s.name }} 선수 쪽에서 본 이야기</div>
+      <p>{{ s.story.text }}</p>
+      {% if s.f and s.f.namu_title %}<a class="src" href="https://namu.wiki/w/{{ s.f.namu_title|urlencode }}#s-{{ s.story.ref }}" target="_blank" rel="noopener">나무위키 선수 문서에서 전체 보기 ↗</a>{% endif %}
+    </div>
+  {% endfor %}
+  {% if not has_story %}<p class="muted">아직 이 경기에 대한 이야기가 정리되지 않았어요.</p>{% endif %}
+</section>
+
+<div class="grid-2">
+{% for s in sides %}
+  <section class="card">
+    <h2>{{ s.name }} 서사</h2>
+    {% if s.f and s.f.summary %}
+      <p class="story-p">{{ s.f.summary }}</p>
+      {% if s.f.namu_title %}<a class="src" href="https://namu.wiki/w/{{ s.f.namu_title|urlencode }}" target="_blank" rel="noopener">나무위키 선수 문서 ↗</a>{% endif %}
+    {% elif s.f and s.f.note %}
+      <p class="story-p">{{ s.f.note }}</p>
+    {% else %}
+      <p class="muted">정리된 선수 이야기가 없어요.</p>
+    {% endif %}
+    {% if s.bundle and s.bundle.bc %}
+      <h3>블랙컴뱃 최근 경기</h3>
+      <div class="mini-fights">
+      {% for b in s.bundle.bc[:5] %}
+        <div><span class="res {{ b.outcome }}">{{ {'W':'승','L':'패','D':'무','NC':'무효'}.get(b.outcome, '-') }}</span>
+          vs {% if b.opp_id %}<a href="{{ url_for('fighter', fid=b.opp_id) }}">{{ b.opp }}</a>{% else %}{{ b.opp }}{% endif %}
+          <span class="meta">· {{ b.event.name or b.event_id }}</span></div>
+      {% endfor %}
+      </div>
+    {% endif %}
+  </section>
+{% endfor %}
+</div>
+
+{% if h2h|length > 1 %}
+<section class="card">
+  <h2>두 선수의 맞대결 기록</h2>
+  {% for r in h2h %}
+    <div><a href="{{ url_for('fight', n=r.bout_order, eid=r.event_id) }}">{{ r.event.name or r.event_id }}</a>
+      <span class="meta">{{ fmt_date(r.event.date) }}</span> — {{ r.result_text or '예정' }}</div>
+  {% endfor %}
+</section>
+{% endif %}
+<p class="meta">이야기 출처: 나무위키 (CC BY-NC-SA 2.0 KR) 요약 · 전체 글은 원문 링크에서 볼 수 있어요.</p>
+{% endblock %}
